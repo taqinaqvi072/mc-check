@@ -143,7 +143,6 @@ db.init_db()
 # following the same pattern — the fallback logic groups proxies by their
 # "user" credential automatically, so no other code changes are needed.
 PROXIES = [
-   
 
     # API Shabi Account
     ("31.59.20.176", "6754", "jvvxsdlp", "5xu3f2zqhart", "http"),
@@ -152,14 +151,25 @@ PROXIES = [
     ("38.154.185.97", "6370", "jvvxsdlp", "5xu3f2zqhart", "http"),
     ("191.96.254.138", "6185", "jvvxsdlp", "5xu3f2zqhart", "http"),
     ("198.46.161.42", "5092", "jvvxsdlp", "5xu3f2zqhart", "http"),
-    
-    # # Webshare account 3 - taqinaqvi072
-    # ("31.59.20.176", "6754", "nwjtmabu", "5j1948uorumx", "http"),
-    # ("45.38.107.97", "6014", "nwjtmabu", "5j1948uorumx", "http"),
-    # ("198.105.121.200", "6462", "nwjtmabu", "5j1948uorumx", "http"),
-    # ("198.23.243.226", "6361", "nwjtmabu", "5j1948uorumx", "http"),
-    # ("38.154.185.97", "6370", "nwjtmabu", "5j1948uorumx", "http"),
-    # ("191.96.254.138", "6185", "nwjtmabu", "5j1948uorumx", "http"),
+
+    # mehak 1
+    ("31.59.20.176", "6754", "gtmgogwf", "lb2nvfsdbcuw", "http"),
+    ("45.38.107.97", "6014", "gtmgogwf", "lb2nvfsdbcuw", "http"),
+    ("198.23.243.226", "6361", "gtmgogwf", "lb2nvfsdbcuw", "http"),
+    ("38.154.185.97", "6370", "gtmgogwf", "lb2nvfsdbcuw", "http"),
+    ("191.96.254.138", "6185", "gtmgogwf", "lb2nvfsdbcuw", "http"),
+    ("198.46.161.42", "5092", "gtmgogwf", "lb2nvfsdbcuw", "http"),
+
+    # mehak 2
+    ("31.59.20.176", "6754", "mgmmtqbd", "9dxxbjx501ox", "http"),
+    ("45.38.107.97", "6014", "mgmmtqbd", "9dxxbjx501ox", "http"),
+    ("198.23.243.226", "6361", "mgmmtqbd", "9dxxbjx501ox", "http"),
+    ("38.154.185.97", "6370", "mgmmtqbd", "9dxxbjx501ox", "http"),
+    ("191.96.254.138", "6185", "mgmmtqbd", "9dxxbjx501ox", "http"),
+    ("198.46.161.42", "5092", "mgmmtqbd", "9dxxbjx501ox", "http"),
+
+   
+
 ]
 _proxy_index = [0]
 _proxy_lock = threading.Lock()
