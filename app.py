@@ -273,6 +273,10 @@ VALID_US_STATES = {
 }
 
 # Cargo classification: label matching -> category (fresh / reefer / general)
+# NOTE: this map/keyword list is only used to populate the informational
+# "cargo_carried" / "cargo_categories" fields shown in results, CSVs, and
+# the carrier detail page. It no longer affects whether a carrier
+# qualifies — see qualifies() below, which now accepts every cargo type.
 CARGO_CATEGORY_MAP = {
     "fresh produce": "fresh",
     "perishable": "fresh",
@@ -876,6 +880,10 @@ def parse_carrier(html, mc_number):
 
 
 def qualifies(data, prefs=None):
+    """A carrier qualifies purely on entity type, authority status, and
+    power units. Cargo type is no longer a qualification factor — every
+    cargo type is accepted (client request). cargo_carried/cargo_categories
+    are still parsed and returned on every result purely for display."""
     prefs = prefs or {}
     min_pu = prefs.get("min_power_units", 0)
     max_pu = prefs.get("max_power_units", 6)
@@ -888,15 +896,6 @@ def qualifies(data, prefs=None):
     if data["power_units"] is None or not (min_pu <= data["power_units"] <= max_pu):
         return False
 
-    allowed_cats = set()
-    if prefs.get("cargo_general", True):
-        allowed_cats.add("general")
-    if prefs.get("cargo_reefer", True):
-        allowed_cats.add("reefer")
-    if prefs.get("cargo_fresh", True):
-        allowed_cats.add("fresh")
-    if not (set(data.get("cargo_categories", [])) & allowed_cats):
-        return False
     return True
 
 
