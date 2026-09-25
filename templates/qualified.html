@@ -1,0 +1,1209 @@
+{% extends "base.html" %}
+{% block title %}Qualified Carriers{% endblock %}
+
+{% block extra_style %}
+<style>
+/* =========================================================
+   QUALIFIED CARRIERS — MC SCOUT STYLE
+   ========================================================= */
+
+.qualified-page {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* ---------- HERO ---------- */
+
+.qualified-hero {
+  height: 235px;
+  position: relative;
+  padding: 27px 36px 0;
+  overflow: hidden;
+  border-radius: 15px;
+  margin-bottom: 22px;
+  border: 1px solid var(--border);
+
+  background-image:
+    linear-gradient(
+      90deg,
+      rgba(255,255,255,.75) 0%,
+      rgba(255,255,255,.55) 22%,
+      rgba(255,255,255,.20) 58%,
+      rgba(255,255,255,.0) 100%
+    ),
+    url("/static/qualified_light.webp");
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center 54%;
+}
+
+html[data-theme="dark"] .qualified-hero {
+  background-image:
+    linear-gradient(
+      90deg,
+      rgba(9,14,21,.80) 0%,
+      rgba(9,14,21,.55) 25%,
+      rgba(9,14,21,.22) 62%,
+      rgba(9,14,21,.0) 100%
+    ),
+    url("/static/qualified_dark.webp");
+  background-position: center 54%;
+}
+
+.qualified-hero-content {
+  position: relative;
+  z-index: 3;
+}
+
+.qualified-hero h1 {
+  margin: 0;
+  color: #172235;
+  font-size: 30px;
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -.7px;
+}
+
+html[data-theme="dark"] .qualified-hero h1 {
+  color: #fff;
+}
+
+.qualified-hero p {
+  margin: 10px 0 0;
+  color: #59677d;
+  font-size: 14px;
+}
+
+html[data-theme="dark"] .qualified-hero p {
+  color: #bac3cf;
+}
+
+.muted-small {
+  font-size: 13px;
+  font-family: var(--mono);
+  color: var(--muted);
+  font-weight: 500;
+  margin-left: 5px;
+}
+
+
+/* ---------- MAIN CARD ---------- */
+
+.qualified-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  box-shadow: 0 4px 16px rgba(20, 30, 50, 0.045);
+  overflow: hidden;
+}
+
+
+/* ---------- FILTER AREA ---------- */
+
+.filters-area {
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.filters-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+.filter-input,
+.filter-select {
+  height: 40px;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--panel);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12.5px;
+  outline: none;
+  transition: .18s ease;
+}
+
+.filter-input {
+  width: 285px;
+  padding: 0 13px;
+}
+
+.filter-select {
+  min-width: 155px;
+  padding: 0 32px 0 12px;
+}
+
+.filter-input::placeholder {
+  color: var(--muted);
+}
+
+.filter-input:focus,
+.filter-select:focus {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(45, 105, 230, .08);
+}
+
+
+/* ---------- RESULTS HEADER ---------- */
+
+.results-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 17px 20px 13px;
+}
+
+.results-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.results-count {
+  color: var(--general);
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 5px;
+}
+
+.results-info {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+
+/* ---------- TABLE ---------- */
+
+.results-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.qualified-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+
+.qualified-table thead th {
+  height: 42px;
+  padding: 0 14px;
+  background: var(--panel-2-solid);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 700;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: .35px;
+  white-space: nowrap;
+}
+
+.qualified-table tbody td {
+  padding: 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-size: 12.5px;
+  vertical-align: middle;
+}
+
+.qualified-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.qualified-table tbody tr {
+  transition: background .15s ease;
+}
+
+.qualified-table tbody tr:hover {
+  background: var(--panel-2-solid);
+}
+
+
+/* ---------- MC ---------- */
+
+.mc-cell {
+  font-family: var(--mono);
+  font-size: 11.5px !important;
+  font-weight: 600;
+  color: var(--text) !important;
+  white-space: nowrap;
+}
+
+
+/* ---------- NAME ---------- */
+
+.carrier-name {
+  font-weight: 600;
+  color: var(--text);
+  min-width: 180px;
+}
+
+
+/* ---------- STAR ---------- */
+
+.fav-star {
+  width: 30px;
+  height: 30px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 7px;
+  cursor: pointer;
+
+  color: var(--muted);
+  font-size: 17px;
+
+  transition: .16s ease;
+}
+
+.fav-star:hover {
+  background: var(--panel-2-solid);
+  color: var(--general);
+}
+
+.fav-star.active {
+  color: var(--general);
+}
+
+
+/* ---------- BADGES ---------- */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 23px;
+  padding: 3px 8px;
+
+  border-radius: 6px;
+
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge.fresh {
+  color: #087f55;
+  background: rgba(12, 174, 107, .10);
+  border: 1px solid rgba(12, 174, 107, .18);
+}
+
+.badge.reefer {
+  color: #1769d1;
+  background: rgba(35, 110, 225, .10);
+  border: 1px solid rgba(35, 110, 225, .18);
+}
+
+.badge.general {
+  color: #d85a00;
+  background: rgba(255, 103, 0, .10);
+  border: 1px solid rgba(255, 103, 0, .18);
+}
+
+.badge.neutral {
+  color: var(--muted);
+  background: var(--panel-2-solid);
+  border: 1px solid var(--border);
+}
+
+
+/* ---------- ACTIONS ---------- */
+
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  height: 28px;
+  padding: 0 9px;
+
+  border: 1px solid var(--border);
+  border-radius: 7px;
+
+  background: var(--panel);
+  color: var(--text);
+
+  cursor: pointer;
+  font-size: 10.5px;
+  font-weight: 600;
+
+  transition: .16s ease;
+}
+
+.action-icon:hover {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+  background: var(--panel-2-solid);
+}
+
+
+/* ---------- EMPTY STATE ---------- */
+
+.empty-state {
+  min-height: 260px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  padding: 35px;
+  text-align: center;
+
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.empty-icon {
+  width: 48px;
+  height: 48px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-bottom: 12px;
+
+  border: 2px solid var(--general);
+  border-radius: 12px;
+
+  color: var(--general);
+  font-size: 21px;
+}
+
+.empty-title {
+  color: var(--text);
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+
+/* ---------- FOOTER ---------- */
+
+.qualified-footer-note {
+  margin-top: 15px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+
+/* ---------- RESPONSIVE ---------- */
+
+@media (max-width: 1100px) {
+
+  .filter-input {
+    width: 240px;
+  }
+
+  .filter-select {
+    min-width: 135px;
+  }
+
+  .qualified-table thead th,
+  .qualified-table tbody td {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
+
+
+@media (max-width: 800px) {
+
+  .qualified-hero {
+    height: 200px;
+    padding: 25px 20px;
+  }
+
+  .qualified-page .page-header h1,
+  .qualified-hero h1 {
+    font-size: 23px;
+  }
+
+  .filters-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .filter-input,
+  .filter-select {
+    width: 100%;
+  }
+
+  .results-top {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .qualified-table {
+    min-width: 950px;
+  }
+}
+</style>
+{% endblock %}
+
+
+{% block content %}
+
+<div class="qualified-page">
+
+  <!-- ===================================================
+       HERO
+       =================================================== -->
+
+  <section class="qualified-hero">
+
+    <div class="qualified-hero-content">
+
+      <h1>
+        Qualified Carriers
+        <span class="muted-small" id="qCount"></span>
+      </h1>
+
+      <p>
+        Carriers from your most recent scan that matched your criteria.
+      </p>
+
+    </div>
+
+  </section>
+
+
+  <!-- MAIN QUALIFIED CARD -->
+  <div class="qualified-card">
+
+    <!-- FILTERS -->
+    <div class="filters-area">
+
+      <div class="filters-row">
+
+        <input
+          type="text"
+          id="searchInput"
+          class="filter-input"
+          placeholder="Search by MC, name, city, state, phone…"
+          oninput="render()"
+        >
+
+        <select
+          id="cargoFilter"
+          class="filter-select"
+          onchange="render()"
+        >
+          <option value="">All Cargo Types</option>
+          <option value="fresh">Fresh</option>
+          <option value="reefer">Reefer</option>
+          <option value="general">General Freight</option>
+        </select>
+
+        <select
+          id="stateFilter"
+          class="filter-select"
+          onchange="render()"
+        >
+          <option value="">All States</option>
+        </select>
+
+        <select
+          id="puFilter"
+          class="filter-select"
+          onchange="render()"
+        >
+          <option value="">Any Power Units</option>
+          <option value="1">1 Power Unit</option>
+          <option value="2">2 Power Units</option>
+          <option value="3">3 Power Units</option>
+          <option value="4">4 Power Units</option>
+          <option value="5">5 Power Units</option>
+        </select>
+
+      </div>
+
+    </div>
+
+
+    <!-- RESULTS HEADER -->
+    <div class="results-top">
+
+      <div>
+        <span class="results-title">Qualified Results</span>
+        <span class="results-count" id="resultLabel"></span>
+      </div>
+
+      <div class="results-info">
+        Most recent scan results
+      </div>
+
+    </div>
+
+
+    <!-- RESULTS -->
+    <div id="resultsWrap">
+
+      <div class="empty-state">
+
+        <div class="empty-icon">✓</div>
+
+        <div class="empty-title">
+          No qualified carriers yet
+        </div>
+
+        <div>
+          Run a scan from the Dashboard to see qualified carriers here.
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+
+
+</div>
+
+{% endblock %}
+
+
+{% block extra_script %}
+
+<script>
+
+let allResults = [];
+let savedSet = new Set();
+
+
+/* =========================================================
+   CARGO BADGES
+   ========================================================= */
+
+function cargoBadges(cargoStr) {
+
+  if (!cargoStr) {
+    return '<span class="badge neutral">—</span>';
+  }
+
+  const items = cargoStr
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const colorFor = (label) => {
+
+    const l = label.toLowerCase();
+
+    if (
+      l.includes('refrigerated') ||
+      l.includes('frozen') ||
+      l.includes('temperature') ||
+      l.includes('reefer')
+    ) {
+      return 'reefer';
+    }
+
+    if (
+      l.includes('fresh') ||
+      l.includes('perishable')
+    ) {
+      return 'fresh';
+    }
+
+    if (
+      l.includes('general')
+    ) {
+      return 'general';
+    }
+
+    return 'neutral';
+  };
+
+  return items
+    .map(item => `
+      <span
+        class="badge ${colorFor(item)}"
+        style="margin:2px 3px 2px 0;"
+      >
+        ${escapeHtml(item)}
+      </span>
+    `)
+    .join(' ');
+}
+
+
+/* =========================================================
+   ESCAPE HTML
+   ========================================================= */
+
+function escapeHtml(value) {
+
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+
+/* =========================================================
+   LOAD RESULTS
+   ========================================================= */
+
+async function loadResults() {
+
+  try {
+
+    const res = await fetch('/api/results');
+
+    if (!res.ok) {
+      throw new Error('Failed to load results');
+    }
+
+    allResults = await res.json();
+
+
+    /* STATES */
+
+    const states = [
+      ...new Set(
+        allResults
+          .map(r => r.state)
+          .filter(Boolean)
+      )
+    ].sort();
+
+
+    const sel = document.getElementById('stateFilter');
+
+    sel.innerHTML =
+      '<option value="">All States</option>' +
+      states
+        .map(
+          s =>
+            `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`
+        )
+        .join('');
+
+
+    /* SAVED */
+
+    const savedRes = await fetch('/api/saved');
+
+    if (savedRes.ok) {
+
+      const saved = await savedRes.json();
+
+      savedSet = new Set(
+        saved.map(
+          s => String(s.mc_number)
+        )
+      );
+
+    }
+
+
+    render();
+
+  } catch (error) {
+
+    console.error(error);
+
+    document.getElementById('resultsWrap').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">!</div>
+
+        <div class="empty-title">
+          Unable to load carriers
+        </div>
+
+        <div>
+          Please refresh the page and try again.
+        </div>
+      </div>
+    `;
+
+  }
+}
+
+
+/* =========================================================
+   RENDER
+   ========================================================= */
+
+function render() {
+
+  const searchElement =
+    document.getElementById('searchInput');
+
+  const cargoElement =
+    document.getElementById('cargoFilter');
+
+  const stateElement =
+    document.getElementById('stateFilter');
+
+  const puElement =
+    document.getElementById('puFilter');
+
+
+  const q =
+    searchElement.value
+      .trim()
+      .toLowerCase();
+
+  const cargoF =
+    cargoElement.value;
+
+  const stateF =
+    stateElement.value;
+
+  const puF =
+    puElement.value;
+
+
+  let rows = allResults.filter(r => {
+
+    const legalName =
+      (r.legal_name || '').toLowerCase();
+
+    const phone =
+      (r.phone || '').toLowerCase();
+
+    const city =
+      (r.city || '').toLowerCase();
+
+    const state =
+      (r.state || '').toLowerCase();
+
+    const mc =
+      String(r.mc_number || '');
+
+
+    /* SEARCH */
+
+    if (
+      q &&
+      !(
+        legalName.includes(q) ||
+        phone.includes(q) ||
+        city.includes(q) ||
+        state.includes(q) ||
+        mc.includes(q)
+      )
+    ) {
+      return false;
+    }
+
+
+    /* CARGO */
+
+    if (
+      cargoF &&
+      !(r.cargo_categories || []).includes(cargoF)
+    ) {
+      return false;
+    }
+
+
+    /* STATE */
+
+    if (
+      stateF &&
+      r.state !== stateF
+    ) {
+      return false;
+    }
+
+
+    /* POWER UNITS */
+
+    if (
+      puF &&
+      String(r.power_units) !== puF
+    ) {
+      return false;
+    }
+
+
+    return true;
+
+  });
+
+
+  /* COUNT */
+
+  document.getElementById('qCount').textContent =
+    `(${rows.length})`;
+
+  document.getElementById('resultLabel').textContent =
+    `${rows.length} carrier${rows.length === 1 ? '' : 's'}`;
+
+
+  const wrap =
+    document.getElementById('resultsWrap');
+
+
+  /* EMPTY */
+
+  if (!rows.length) {
+
+    wrap.innerHTML = `
+      <div class="empty-state">
+
+        <div class="empty-icon">✓</div>
+
+        <div class="empty-title">
+          No qualified carriers found
+        </div>
+
+        <div>
+          No carriers match your current filters.
+        </div>
+
+      </div>
+    `;
+
+    return;
+  }
+
+
+  /* TABLE */
+
+  let html = `
+
+    <div class="results-table-wrap">
+
+      <table class="qualified-table">
+
+        <thead>
+
+          <tr>
+            <th style="width:42px;"></th>
+            <th>MC</th>
+            <th>Legal Name</th>
+            <th>State</th>
+            <th>Phone</th>
+            <th>PU</th>
+            <th>Cargo</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+
+        </thead>
+
+        <tbody>
+  `;
+
+
+  for (const r of rows) {
+
+    const isSaved =
+      savedSet.has(
+        String(r.mc_number)
+      );
+
+
+    const mc =
+      escapeHtml(r.mc_number);
+
+    const name =
+      escapeHtml(r.legal_name || '—');
+
+    const state =
+      escapeHtml(r.state || '—');
+
+    const phone =
+      escapeHtml(r.phone || '—');
+
+    const pu =
+      r.power_units ?? '—';
+
+
+    html += `
+
+      <tr>
+
+        <!-- STAR -->
+
+        <td>
+
+          <span
+            class="fav-star ${isSaved ? 'active' : ''}"
+            onclick="toggleSave(${Number(r.mc_number)})"
+            title="${isSaved ? 'Remove from saved' : 'Save carrier'}"
+          >
+            ${isSaved ? '★' : '☆'}
+          </span>
+
+        </td>
+
+
+        <!-- MC -->
+
+        <td class="mc-cell">
+          MC-${mc}
+        </td>
+
+
+        <!-- NAME -->
+
+        <td class="carrier-name">
+          ${name}
+        </td>
+
+
+        <!-- STATE -->
+
+        <td>
+          ${state}
+        </td>
+
+
+        <!-- PHONE -->
+
+        <td class="mc-cell">
+          ${phone}
+        </td>
+
+
+        <!-- POWER UNITS -->
+
+        <td>
+          ${pu}
+        </td>
+
+
+        <!-- CARGO -->
+
+        <td>
+          ${cargoBadges(r.cargo_carried)}
+        </td>
+
+
+        <!-- STATUS -->
+
+        <td>
+          <span class="badge fresh">
+            Qualified
+          </span>
+        </td>
+
+
+        <!-- ACTIONS -->
+
+        <td>
+
+          <div class="action-buttons">
+
+            <span
+              class="action-icon"
+              onclick="window.location.href='/carrier/${encodeURIComponent(r.mc_number)}'"
+            >
+              View
+            </span>
+
+            <span
+              class="action-icon"
+              onclick="copyPhone('${String(r.phone || '').replace(/'/g, "\\'")}')"
+            >
+              Copy
+            </span>
+
+            <span
+              class="action-icon"
+              onclick="quickNote(${Number(r.mc_number)})"
+            >
+              Note
+            </span>
+
+          </div>
+
+        </td>
+
+      </tr>
+    `;
+  }
+
+
+  html += `
+
+        </tbody>
+
+      </table>
+
+    </div>
+  `;
+
+
+  wrap.innerHTML = html;
+}
+
+
+/* =========================================================
+   SAVE / REMOVE
+   ========================================================= */
+
+async function toggleSave(mc) {
+
+  const carrier =
+    allResults.find(
+      r => Number(r.mc_number) === Number(mc)
+    );
+
+  if (!carrier) {
+    return;
+  }
+
+
+  try {
+
+    if (
+      savedSet.has(
+        String(mc)
+      )
+    ) {
+
+      const res =
+        await fetch(
+          `/api/saved/${mc}`,
+          {
+            method: 'DELETE'
+          }
+        );
+
+
+      if (!res.ok) {
+        throw new Error('Failed to remove');
+      }
+
+
+      savedSet.delete(
+        String(mc)
+      );
+
+      showToast(
+        `MC-${mc} removed from saved`
+      );
+
+    } else {
+
+      const res =
+        await fetch(
+          '/api/saved',
+          {
+            method: 'POST',
+
+            headers: {
+              'Content-Type':
+                'application/json'
+            },
+
+            body:
+              JSON.stringify(carrier)
+          }
+        );
+
+
+      if (!res.ok) {
+        throw new Error('Failed to save');
+      }
+
+
+      savedSet.add(
+        String(mc)
+      );
+
+      showToast(
+        `MC-${mc} saved successfully.`
+      );
+
+    }
+
+
+    render();
+
+  } catch (error) {
+
+    console.error(error);
+
+    showToast(
+      'Unable to update saved carrier'
+    );
+
+  }
+}
+
+
+/* =========================================================
+   COPY PHONE
+   ========================================================= */
+
+function copyPhone(phone) {
+
+  if (!phone) {
+
+    showToast(
+      'No phone number available'
+    );
+
+    return;
+  }
+
+
+  navigator.clipboard
+    .writeText(phone)
+    .then(() => {
+
+      showToast(
+        'Phone number copied'
+      );
+
+    })
+    .catch(() => {
+
+      showToast(
+        'Unable to copy phone number'
+      );
+
+    });
+}
+
+
+/* =========================================================
+   QUICK NOTE
+   ========================================================= */
+
+function quickNote(mc) {
+
+  window.location.href =
+    `/notes?mc=${encodeURIComponent(mc)}`;
+}
+
+
+/* =========================================================
+   START
+   ========================================================= */
+
+loadResults();
+
+</script>
+
+{% endblock %}

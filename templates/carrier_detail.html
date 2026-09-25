@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Carrier Details{% endblock %}
+{% block extra_style %}
+<style>
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 800px) { .detail-grid { grid-template-columns: 1fr; } }
+  .kv-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .kv-row:last-child { border-bottom: none; }
+  .kv-row .k { color: var(--muted); }
+  .kv-row .v { font-weight: 600; text-align: right; }
+  .unavailable-note { background: var(--general-bg); border: 1px solid var(--general); color: var(--general); font-size: 11.5px; padding: 10px 12px; border-radius: 8px; margin-top: 10px; }
+  .doc-row { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--panel-2-solid); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; }
+  .doc-row .name { font-size: 13px; font-weight: 600; }
+  .doc-actions button { font-size: 11px; padding: 5px 10px; margin-left: 4px; }
+  .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); text-decoration: none; font-size: 13px; margin-bottom: 14px; }
+</style>
+{% endblock %}
+{% block content %}
+<a href="javascript:history.back()" class="back-link">← Back</a>
+
+{% if not carrier %}
+<div class="card"><div class="empty-state">No data found for MC-{{ mc_number }}. It may not be in your current scan results or saved list.</div></div>
+{% else %}
+<div class="page-header">
+  <h1>{{ carrier.legal_name or "MC-" + mc_number }}</h1>
+  <p>MC-{{ mc_number }} · Carrier Overview</p>
+</div>
+
+<div class="detail-grid">
+  <div class="card">
+    <div class="card-title" style="margin-bottom:6px;">Carrier Overview</div>
+    <div class="kv-row"><span class="k">MC Number</span><span class="v">MC-{{ mc_number }}</span></div>
+    <div class="kv-row"><span class="k">Legal Name</span><span class="v">{{ carrier.legal_name or "—" }}</span></div>
+    <div class="kv-row"><span class="k">DBA</span><span class="v">{{ carrier.dba_name or "—" }}</span></div>
+    <div class="kv-row"><span class="k">State</span><span class="v">{{ carrier.state or "—" }}</span></div>
+    <div class="kv-row"><span class="k">Phone</span><span class="v">{{ carrier.phone or "—" }}</span></div>
+    <div class="kv-row"><span class="k">Address</span><span class="v">{{ carrier.address_line1 or "—" }}{% if carrier.city %}, {{ carrier.city }}{% endif %}</span></div>
+    <div class="kv-row"><span class="k">Power Units</span><span class="v">{{ carrier.power_units if carrier.power_units is not none else "—" }}</span></div>
+    <div class="kv-row"><span class="k">Cargo</span><span class="v">{{ carrier.cargo_carried or "—" }}</span></div>
+    <div class="kv-row"><span class="k">Carrier Type</span><span class="v">{{ carrier.entity_type or "—" }}</span></div>
+    <div class="kv-row"><span class="k">Operating Status</span><span class="v">{{ carrier.authority_status or "—" }}</span></div>
+  </div>
+
+  <div>
+    <div class="card">
+      <div class="card-title" style="margin-bottom:6px;">Authority</div>
+      <div class="kv-row"><span class="k">Authority Status</span><span class="v">{{ carrier.authority_status or "—" }}</span></div>
+      <div class="kv-row"><span class="k">Common / Contract / Broker Authority</span><span class="v">—</span></div>
+      <div class="unavailable-note">Authority sub-type breakdown isn't provided by FMCSA SAFER's free lookup — only the overall status shown above is available.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="margin-bottom:6px;">Insurance</div>
+      <div class="kv-row"><span class="k">Auto Liability</span><span class="v">—</span></div>
+      <div class="kv-row"><span class="k">General Liability</span><span class="v">—</span></div>
+      <div class="kv-row"><span class="k">Motor Carrier Liability</span><span class="v">—</span></div>
+      <div class="kv-row"><span class="k">Insurance Status</span><span class="v">—</span></div>
+      <div class="unavailable-note">Insurance figures aren't available from FMCSA SAFER's free data — this requires FMCSA's paid Licensing &amp; Insurance dataset, not currently connected.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="margin-bottom:10px;">Documents</div>
+      <div class="doc-row"><span class="name">Authority Letter</span><div class="doc-actions"><button class="btn btn-secondary" disabled>View</button><button class="btn btn-secondary" disabled>Upload</button></div></div>
+      <div class="doc-row"><span class="name">W9</span><div class="doc-actions"><button class="btn btn-secondary" disabled>View</button><button class="btn btn-secondary" disabled>Upload</button></div></div>
+      <div class="doc-row"><span class="name">Certificate of Insurance</span><div class="doc-actions"><button class="btn btn-secondary" disabled>View</button><button class="btn btn-secondary" disabled>Upload</button></div></div>
+      <div class="unavailable-note">Document storage isn't wired up yet — these are placeholders for a future upload feature.</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <button class="btn btn-primary" onclick="saveThis()">Save Carrier</button>
+  <button class="btn btn-secondary" onclick="copyPhone()">Copy Phone</button>
+  <button class="btn btn-secondary" onclick="window.location.href='/notes?mc={{ mc_number }}'">Add Note</button>
+</div>
+{% endif %}
+{% endblock %}
+{% block extra_script %}
+<script>
+const carrierData = {{ carrier|tojson if carrier else 'null' }};
+async function saveThis() {
+  if (!carrierData) return;
+  await fetch('/api/saved', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(carrierData) });
+  showToast('MC-{{ mc_number }} saved successfully.');
+}
+function copyPhone() {
+  const phone = carrierData ? carrierData.phone : '';
+  if (!phone) { showToast('No phone number available'); return; }
+  navigator.clipboard.writeText(phone).then(() => showToast('Phone number copied'));
+}
+</script>
+{% endblock %}

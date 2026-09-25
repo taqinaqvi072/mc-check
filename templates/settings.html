@@ -1,0 +1,1092 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+
+{% block preload_images %}
+<link rel="preload" as="image" href="/static/setting_light.webp">
+<link rel="preload" as="image" href="/static/setting_dark.webp">
+{% endblock %}
+
+{% block extra_style %}
+<style>
+/* =========================================================
+   SETTINGS — K&A STYLE
+   ========================================================= */
+
+.settings-page {
+  width: 100%;
+  max-width: 100%;
+}
+
+
+/* ---------- HERO ---------- */
+
+.settings-hero {
+  height: 235px;
+  position: relative;
+  padding: 27px 36px 0;
+  overflow: hidden;
+  border-radius: 15px;
+  margin-bottom: 22px;
+  border: 1px solid var(--border);
+
+  background-image:
+    linear-gradient(
+      rgba(0,0,0,.38),
+      rgba(0,0,0,.38)
+    ),
+    url("/static/setting_light.webp");
+
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center 54%;
+}
+
+html[data-theme="dark"] .settings-hero {
+  background-image:
+    linear-gradient(
+      rgba(0,0,0,.55),
+      rgba(0,0,0,.55)
+    ),
+    url("/static/setting_dark.webp");
+
+  background-position: center 54%;
+}
+
+.settings-hero-content {
+  position: relative;
+  z-index: 3;
+}
+
+.settings-hero h1 {
+  margin: 0;
+  color: #fff;
+  font-size: 30px;
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -.7px;
+}
+
+.settings-hero p {
+  margin: 10px 0 0;
+  color: rgba(255,255,255,.85);
+  font-size: 14px;
+}
+
+
+/* ---------- LAYOUT ---------- */
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 800px) {
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: sticky;
+  top: 90px;
+}
+
+.settings-nav a {
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: none;
+  transition: .15s ease;
+}
+
+.settings-nav a.active,
+.settings-nav a:hover {
+  background: var(--panel-2-solid);
+  color: var(--text);
+}
+
+
+/* ---------- SETTINGS CARD ---------- */
+
+.settings-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  box-shadow: 0 4px 16px rgba(20, 30, 50, 0.045);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.settings-card-title {
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+
+/* ---------- SETTING ROW ---------- */
+
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.setting-row:last-child {
+  border-bottom: none;
+}
+
+.setting-row .t {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.setting-row .d {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+
+/* ---------- TOGGLE ---------- */
+
+.toggle {
+  width: 40px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--panel-2-solid);
+  border: 1px solid var(--border);
+  position: relative;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: .15s ease;
+}
+
+.toggle.on {
+  background: var(--orange);
+  border-color: var(--orange);
+}
+
+.toggle .knob {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: left .15s ease;
+}
+
+.toggle.on .knob {
+  left: 20px;
+}
+
+
+/* ---------- INPUTS / SELECT ---------- */
+
+.pu-inputs {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.pu-inputs input,
+.settings-card select,
+.acc-field input {
+  height: 40px;
+  box-sizing: border-box;
+  padding: 0 13px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--panel);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12.5px;
+  outline: none;
+  transition: .18s ease;
+}
+
+.pu-inputs input {
+  width: 70px;
+}
+
+.pu-inputs input:focus,
+.settings-card select:focus,
+.acc-field input:focus {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(45, 105, 230, .08);
+}
+
+
+/* =========================================================
+   ACCOUNT FORM
+   ========================================================= */
+
+.acc-form {
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 12px;
+}
+
+.acc-form.open {
+  display: flex;
+}
+
+
+/* ---------- STEP 1: CHOOSER ---------- */
+
+.acc-chooser {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.acc-chooser.hidden {
+  display: none;
+}
+
+.acc-chooser-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.acc-chooser-options {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.acc-choice {
+  flex: 1;
+  min-width: 140px;
+}
+
+
+/* ---------- STEP 2: EDIT FORM ---------- */
+
+.acc-edit-form {
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.acc-edit-form.open {
+  display: flex;
+}
+
+.acc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.acc-field label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.acc-field input {
+  width: 100%;
+}
+
+
+/* ---------- ACTIONS ---------- */
+
+.acc-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+
+/* ---------- MESSAGE ---------- */
+
+.acc-msg {
+  display: none;
+  padding: 8px 10px;
+  border-radius: 7px;
+  font-size: 11.5px;
+}
+
+.acc-msg.error {
+  display: block;
+  background: #fff0eb;
+  color: #c44c00;
+}
+
+.acc-msg.success {
+  display: block;
+  background: rgba(9,169,108,.1);
+  color: #09a96c;
+}
+
+
+/* ---------- BUTTON ---------- */
+
+.d-btn {
+  height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: .16s ease;
+}
+
+.d-btn:hover {
+  background: var(--panel-2-solid);
+}
+
+.d-btn-primary {
+  border-color: var(--orange);
+  background: var(--orange);
+  color: #fff;
+  box-shadow: 0 5px 12px rgba(255,101,0,.17);
+}
+
+.d-btn-primary:hover {
+  background: var(--orange-dark);
+}
+
+
+/* ---------- BADGE ---------- */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 23px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge.premium {
+  color: var(--orange);
+  background: rgba(255, 101, 0, .10);
+  border: 1px solid rgba(255, 101, 0, .18);
+}
+
+
+/* ---------- RESPONSIVE ---------- */
+
+@media (max-width: 650px) {
+
+  .settings-hero {
+    height: 200px;
+    padding: 25px 20px;
+  }
+
+  .settings-hero h1 {
+    font-size: 23px;
+  }
+
+  .setting-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .pu-inputs {
+    width: 100%;
+  }
+
+  .acc-choice {
+    width: 100%;
+    flex: none;
+  }
+}
+</style>
+{% endblock %}
+
+
+{% block content %}
+
+<div class="settings-page">
+
+  <!-- ===================================================
+       HERO
+       =================================================== -->
+
+  <section class="settings-hero">
+
+    <div class="settings-hero-content">
+
+      <h1>
+        Settings
+      </h1>
+
+      <p>
+        Manage your account, scanner defaults, and preferences.
+      </p>
+
+    </div>
+
+  </section>
+
+
+  <!-- ===================================================
+       BODY
+       =================================================== -->
+
+  <div class="settings-grid">
+
+    <div class="settings-nav">
+      <a href="#account" class="active">Account</a>
+      <a href="#scanner">Scanner</a>
+      <a href="#appearance">Appearance</a>
+      <a href="#notifications">Notifications</a>
+      {% if is_admin %}<a href="#admin">Admin</a>{% endif %}
+    </div>
+
+    <div>
+
+      <!-- =================================================
+           ACCOUNT
+           ================================================= -->
+
+      <div class="settings-card" id="account">
+
+        <div class="settings-card-title">
+          Account
+        </div>
+
+        <div class="setting-row">
+          <div>
+            <div class="t">Username</div>
+            <div class="d" id="accUsernameDisplay">{{ username }}</div>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div>
+            <div class="t">Plan</div>
+            <div class="d">{{ "Lifetime — includes all future updates" if plan == "lifetime" else "1 Month plan" }}</div>
+          </div>
+          <span class="badge premium">{{ "Lifetime" if plan=="lifetime" else "1 Month" }}</span>
+        </div>
+
+        <div class="setting-row">
+          <div>
+            <div class="t">Username, Email &amp; Password</div>
+            <div class="d">Update your login details</div>
+          </div>
+          <button class="d-btn" id="accToggleBtn" onclick="toggleAccForm()">Edit</button>
+        </div>
+
+
+        <!-- ACCOUNT FORM -->
+
+        <div class="acc-form" id="accForm">
+
+
+          <!-- STEP 1: what do you want to change -->
+
+          <div id="accChooser" class="acc-chooser">
+
+            <div class="acc-chooser-title">
+              What do you want to change?
+            </div>
+
+            <div class="acc-chooser-options">
+
+              <button type="button" class="d-btn acc-choice" onclick="selectAccField('username')">
+                👤 &nbsp; Username
+              </button>
+
+              <button type="button" class="d-btn acc-choice" onclick="selectAccField('email')">
+                ✉️ &nbsp; Email
+              </button>
+
+              <button type="button" class="d-btn acc-choice" onclick="selectAccField('password')">
+                🔒 &nbsp; Password
+              </button>
+
+            </div>
+
+          </div>
+
+
+          <!-- STEP 2: the actual field to edit, shown after a choice -->
+
+          <form id="accEditForm" class="acc-edit-form" onsubmit="return saveAccount(event)">
+
+            <div id="accMsg" class="acc-msg"></div>
+
+            <!-- USERNAME (no current password needed) -->
+            <div class="acc-field acc-field-username" style="display:none;">
+              <label>New Username</label>
+              <input type="text" id="accNewUsername" placeholder="Enter new username" autocomplete="off">
+            </div>
+
+            <!-- EMAIL (no current password needed) -->
+            <div class="acc-field acc-field-email" style="display:none;">
+              <label>New Email</label>
+              <input type="email" id="accNewEmail" placeholder="Enter new email" autocomplete="off">
+            </div>
+
+            <!-- PASSWORD: current -> new -> confirm -->
+            <div class="acc-field acc-field-password" style="display:none;">
+              <label>Current Password</label>
+              <input type="password" id="accCurrentPassword" placeholder="Enter current password" autocomplete="current-password">
+            </div>
+
+            <div class="acc-field acc-field-password" style="display:none;">
+              <label>New Password</label>
+              <input type="password" id="accNewPassword" placeholder="Enter new password" autocomplete="new-password">
+            </div>
+
+            <div class="acc-field acc-field-password" style="display:none;">
+              <label>Confirm New Password</label>
+              <input type="password" id="accConfirmPassword" placeholder="Re-enter new password" autocomplete="new-password">
+            </div>
+
+            <div class="acc-actions">
+              <button type="button" class="d-btn" onclick="backToChooser()">← Back</button>
+              <button type="submit" class="d-btn d-btn-primary">Save Changes</button>
+            </div>
+
+          </form>
+
+        </div>
+
+      </div>
+
+
+      <!-- =================================================
+           SCANNER
+           ================================================= -->
+
+      <div class="settings-card" id="scanner">
+
+        <div class="settings-card-title">
+          Scanner Defaults
+        </div>
+
+        <div class="setting-row">
+
+          <div>
+            <div class="t">Power Units Range</div>
+            <div class="d">Only qualify carriers within this range</div>
+          </div>
+
+          <div class="pu-inputs">
+            <input type="number" id="minPu" min="0" max="20">
+            <span style="color:var(--muted)">to</span>
+            <input type="number" id="maxPu" min="0" max="20">
+          </div>
+
+        </div>
+
+        <div class="setting-row">
+          <div>
+            <div class="t">🟠 General Freight</div>
+            <div class="d">Include general freight carriers</div>
+          </div>
+          <div class="toggle" id="toggleGeneral" onclick="toggleSwitch(this)">
+            <div class="knob"></div>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div>
+            <div class="t">🔵 Reefer</div>
+            <div class="d">Include refrigerated/temperature-controlled carriers</div>
+          </div>
+          <div class="toggle" id="toggleReefer" onclick="toggleSwitch(this)">
+            <div class="knob"></div>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div>
+            <div class="t">🟢 Fresh</div>
+            <div class="d">Include fresh produce / perishable carriers</div>
+          </div>
+          <div class="toggle" id="toggleFresh" onclick="toggleSwitch(this)">
+            <div class="knob"></div>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div></div>
+          <button class="d-btn d-btn-primary" onclick="savePrefs()">
+            Save Scanner Settings
+          </button>
+        </div>
+
+      </div>
+
+
+      <!-- =================================================
+           APPEARANCE
+           ================================================= -->
+
+      <div class="settings-card" id="appearance">
+
+        <div class="settings-card-title">
+          Appearance
+        </div>
+
+        <div class="setting-row">
+          <div>
+            <div class="t">Theme</div>
+            <div class="d">Dark, light, or match your system</div>
+          </div>
+          <select id="themeSelect" onchange="setThemePref(this.value)">
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+          </select>
+        </div>
+
+      </div>
+
+
+      <!-- =================================================
+           NOTIFICATIONS
+           ================================================= -->
+
+      <div class="settings-card" id="notifications">
+
+        <div class="settings-card-title">
+          Notifications
+        </div>
+
+        <div class="setting-row">
+          <div><div class="t">Scan completed</div></div>
+          <div class="toggle on" onclick="toggleSwitch(this)"><div class="knob"></div></div>
+        </div>
+
+        <div class="setting-row">
+          <div><div class="t">Qualified carrier found</div></div>
+          <div class="toggle" onclick="toggleSwitch(this)"><div class="knob"></div></div>
+        </div>
+
+        <div class="setting-row">
+          <div><div class="t">VPN disconnected</div></div>
+          <div class="toggle on" onclick="toggleSwitch(this)"><div class="knob"></div></div>
+        </div>
+
+        <div class="setting-row">
+          <div><div class="t">Report ready</div></div>
+          <div class="toggle" onclick="toggleSwitch(this)"><div class="knob"></div></div>
+        </div>
+
+      </div>
+
+
+      <!-- =================================================
+           ADMIN (only visible to admin accounts)
+           ================================================= -->
+
+      {% if is_admin %}
+      <div class="settings-card" id="admin">
+
+        <div class="settings-card-title">
+          Admin — All Users
+        </div>
+
+        <div class="d" style="margin-bottom:14px;">
+          Every account that has signed up, with plan management and delete.
+        </div>
+
+        <div id="adminMsg" class="acc-msg"></div>
+
+        <div style="overflow-x:auto;">
+          <table style="width:100%; border-collapse:collapse; font-size:12px;">
+            <thead>
+              <tr style="text-align:left; border-bottom:1px solid var(--border);">
+                <th style="padding:8px 6px; color:var(--muted); font-weight:700; font-size:10px; text-transform:uppercase;">Username</th>
+                <th style="padding:8px 6px; color:var(--muted); font-weight:700; font-size:10px; text-transform:uppercase;">Email</th>
+                <th style="padding:8px 6px; color:var(--muted); font-weight:700; font-size:10px; text-transform:uppercase;">Signed Up</th>
+                <th style="padding:8px 6px; color:var(--muted); font-weight:700; font-size:10px; text-transform:uppercase;">Plan</th>
+                <th style="padding:8px 6px; color:var(--muted); font-weight:700; font-size:10px; text-transform:uppercase;"></th>
+              </tr>
+            </thead>
+            <tbody id="adminUsersBody">
+              <tr><td colspan="5" style="padding:14px 6px; color:var(--muted);">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+      {% endif %}
+
+    </div>
+
+  </div>
+
+</div>
+
+{% endblock %}
+
+
+{% block extra_script %}
+<script>
+
+function toggleSwitch(el) {
+  el.classList.toggle('on');
+}
+
+function setThemePref(v) {
+  applyTheme(v);
+}
+
+document.getElementById('themeSelect').value =
+  localStorage.getItem('mcs-theme') || 'dark';
+
+
+/* =====================================================
+   ACCOUNT (username / email / password)
+   ===================================================== */
+
+let accSelectedField = null;
+
+
+function toggleAccForm() {
+
+  const form = document.getElementById('accForm');
+  const isOpen = form.classList.toggle('open');
+
+  document.getElementById('accToggleBtn').textContent =
+    isOpen ? 'Close' : 'Edit';
+
+  if (!isOpen) {
+    resetAccForm();
+  } else {
+    backToChooser();
+  }
+
+}
+
+
+function resetAccForm() {
+
+  accSelectedField = null;
+
+  document.getElementById('accMsg').className = 'acc-msg';
+  document.getElementById('accMsg').textContent = '';
+
+  document.getElementById('accEditForm').reset();
+
+  document.getElementById('accChooser').classList.remove('hidden');
+  document.getElementById('accEditForm').classList.remove('open');
+
+  document.querySelectorAll('.acc-field-username, .acc-field-email, .acc-field-password')
+    .forEach(el => el.style.display = 'none');
+
+}
+
+
+function backToChooser() {
+  resetAccForm();
+}
+
+
+function selectAccField(field) {
+
+  accSelectedField = field;
+
+  document.getElementById('accChooser').classList.add('hidden');
+  document.getElementById('accEditForm').classList.add('open');
+
+  document.querySelectorAll('.acc-field-username, .acc-field-email, .acc-field-password')
+    .forEach(el => el.style.display = 'none');
+
+  document.getElementById('accMsg').className = 'acc-msg';
+  document.getElementById('accMsg').textContent = '';
+
+  if (field === 'username') {
+    document.querySelector('.acc-field-username').style.display = 'flex';
+  }
+
+  if (field === 'email') {
+    document.querySelector('.acc-field-email').style.display = 'flex';
+  }
+
+  if (field === 'password') {
+    document.querySelectorAll('.acc-field-password')
+      .forEach(el => el.style.display = 'flex');
+  }
+
+}
+
+
+async function saveAccount(e) {
+
+  e.preventDefault();
+
+  const msgEl = document.getElementById('accMsg');
+  msgEl.className = 'acc-msg';
+  msgEl.textContent = '';
+
+  if (!accSelectedField) {
+    msgEl.className = 'acc-msg error';
+    msgEl.textContent = 'Please choose what to change first.';
+    return false;
+  }
+
+  // Current password is only sent when changing the password itself —
+  // username/email updates go through without it.
+  const body = {};
+
+  if (accSelectedField === 'username') {
+    const v = document.getElementById('accNewUsername').value.trim();
+    if (!v) {
+      msgEl.className = 'acc-msg error';
+      msgEl.textContent = 'Enter a new username.';
+      return false;
+    }
+    body.new_username = v;
+  }
+
+  if (accSelectedField === 'email') {
+    const v = document.getElementById('accNewEmail').value.trim();
+    if (!v) {
+      msgEl.className = 'acc-msg error';
+      msgEl.textContent = 'Enter a new email.';
+      return false;
+    }
+    body.new_email = v;
+  }
+
+  if (accSelectedField === 'password') {
+
+    const currentPassword = document.getElementById('accCurrentPassword').value;
+    const newPassword = document.getElementById('accNewPassword').value;
+    const confirmPassword = document.getElementById('accConfirmPassword').value;
+
+    if (!currentPassword) {
+      msgEl.className = 'acc-msg error';
+      msgEl.textContent = 'Enter your current password.';
+      return false;
+    }
+
+    if (!newPassword) {
+      msgEl.className = 'acc-msg error';
+      msgEl.textContent = 'Enter a new password.';
+      return false;
+    }
+
+    if (newPassword !== confirmPassword) {
+      msgEl.className = 'acc-msg error';
+      msgEl.textContent = 'New password and confirmation do not match.';
+      return false;
+    }
+
+    body.current_password = currentPassword;
+    body.new_password = newPassword;
+  }
+
+  const res = await fetch('/api/account', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+
+  const data = await res.json();
+
+  if (data.error) {
+    msgEl.className = 'acc-msg error';
+    msgEl.textContent = data.error;
+    return false;
+  }
+
+  msgEl.className = 'acc-msg success';
+  msgEl.textContent = 'Updated successfully.';
+
+  if (data.username) {
+    document.getElementById('accUsernameDisplay').textContent = data.username;
+    // Update the topbar username too, without waiting for a page reload.
+    const topbarEl = document.getElementById('topbarUsername');
+    if (topbarEl) {
+      topbarEl.textContent = data.username;
+    }
+  }
+
+  showToast('Account updated');
+
+  setTimeout(() => {
+    document.getElementById('accForm').classList.remove('open');
+    document.getElementById('accToggleBtn').textContent = 'Edit';
+    resetAccForm();
+  }, 1200);
+
+  return false;
+
+}
+
+
+async function loadPrefs() {
+
+  const res = await fetch('/api/settings');
+  const p = await res.json();
+
+  document.getElementById('minPu').value = p.min_power_units;
+  document.getElementById('maxPu').value = p.max_power_units;
+
+  document.getElementById('toggleGeneral').classList.toggle('on', p.cargo_general);
+  document.getElementById('toggleReefer').classList.toggle('on', p.cargo_reefer);
+  document.getElementById('toggleFresh').classList.toggle('on', p.cargo_fresh);
+}
+
+
+async function savePrefs() {
+
+  const body = {
+    min_power_units: parseInt(document.getElementById('minPu').value) || 0,
+    max_power_units: parseInt(document.getElementById('maxPu').value) || 6,
+    cargo_general: document.getElementById('toggleGeneral').classList.contains('on'),
+    cargo_reefer: document.getElementById('toggleReefer').classList.contains('on'),
+    cargo_fresh: document.getElementById('toggleFresh').classList.contains('on'),
+  };
+
+  await fetch('/api/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+
+  showToast('Scanner settings saved');
+}
+
+
+loadPrefs();
+
+
+/* =====================================================
+   ADMIN — All Users
+   ===================================================== */
+
+const PLAN_OPTIONS = ["demo", "1_month", "1_year", "lifetime"];
+
+async function loadAdminUsers() {
+
+  const tbody = document.getElementById('adminUsersBody');
+  if (!tbody) return; // not an admin, section doesn't exist
+
+  try {
+
+    const res = await fetch('/api/admin/users');
+    const users = await res.json();
+
+    if (!users.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="padding:14px 6px; color:var(--muted);">No users yet.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = users.map(u => {
+
+      const planOptionsHtml = PLAN_OPTIONS.map(p =>
+        `<option value="${p}" ${p === u.plan ? 'selected' : ''}>${p}</option>`
+      ).join('');
+
+      const adminBadge = u.is_admin
+        ? ' <span class="badge premium" style="margin-left:4px;">Admin</span>'
+        : '';
+
+      return `
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:8px 6px; color:var(--text); font-weight:600;">${u.username}${adminBadge}</td>
+          <td style="padding:8px 6px; color:var(--muted);">${u.email}</td>
+          <td style="padding:8px 6px; color:var(--muted); white-space:nowrap;">${u.created}</td>
+          <td style="padding:8px 6px;">
+            <select onchange="adminChangePlan('${u.username}', this.value)" style="height:32px; border-radius:7px; border:1px solid var(--border); background:var(--panel); color:var(--text); font-size:11px; padding:0 6px;">
+              ${planOptionsHtml}
+            </select>
+          </td>
+          <td style="padding:8px 6px; text-align:right;">
+            <button class="d-btn" style="height:32px; padding:0 10px; font-size:10px;" onclick="adminDeleteUser('${u.username}')">Delete</button>
+          </td>
+        </tr>
+      `;
+
+    }).join('');
+
+  } catch (err) {
+
+    tbody.innerHTML = '<tr><td colspan="5" style="padding:14px 6px; color:var(--muted);">Failed to load users.</td></tr>';
+
+  }
+
+}
+
+
+function showAdminMsg(text, isError) {
+  const el = document.getElementById('adminMsg');
+  if (!el) return;
+  el.className = isError ? 'acc-msg error' : 'acc-msg success';
+  el.textContent = text;
+  setTimeout(() => { el.className = 'acc-msg'; el.textContent = ''; }, 3000);
+}
+
+
+async function adminChangePlan(username, plan) {
+
+  const res = await fetch(`/api/admin/users/${encodeURIComponent(username)}/plan`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ plan })
+  });
+
+  const data = await res.json();
+
+  if (data.error) {
+    showAdminMsg(data.error, true);
+    loadAdminUsers();
+    return;
+  }
+
+  showAdminMsg(`${username}'s plan updated to ${plan}.`, false);
+
+}
+
+
+async function adminDeleteUser(username) {
+
+  if (!confirm(`Delete ${username}'s account? This permanently removes their saved MCs, notes, and history. This can't be undone.`)) {
+    return;
+  }
+
+  const res = await fetch(`/api/admin/users/${encodeURIComponent(username)}`, {
+    method: 'DELETE'
+  });
+
+  const data = await res.json();
+
+  if (data.error) {
+    showAdminMsg(data.error, true);
+    return;
+  }
+
+  showAdminMsg(`${username}'s account deleted.`, false);
+  loadAdminUsers();
+
+}
+
+
+loadAdminUsers();
+
+</script>
+{% endblock %}

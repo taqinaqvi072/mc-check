@@ -1,0 +1,504 @@
+{% extends "base.html" %}
+{% block title %}Scan History{% endblock %}
+
+{% block preload_images %}
+<link rel="preload" as="image" href="/static/scan_history_lightt">
+<link rel="preload" as="image" href="/static/history_dark.webp">
+{% endblock %}
+
+
+{% block extra_style %}
+<style>
+/* =========================================================
+   SCAN HISTORY — MC SCOUT STYLE
+   ========================================================= */
+
+.history-page {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* ---------- HERO ---------- */
+
+.history-hero {
+  height: 235px;
+  position: relative;
+  padding: 27px 36px 0;
+  overflow: hidden;
+  border-radius: 15px;
+  margin-bottom: 22px;
+  border: 1px solid var(--border);
+
+  background-image:
+    linear-gradient(
+      rgba(0,0,0,.38),
+      rgba(0,0,0,.38)
+    ),
+    url("/static/scan_history_lightt.webp");
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center 54%;
+}
+
+html[data-theme="dark"] .history-hero {
+  background-image:
+    linear-gradient(
+      rgba(0,0,0,.55),
+      rgba(0,0,0,.55)
+    ),
+    url("/static/history_dark.webp");
+  background-position: center 54%;
+}
+
+.history-hero-content {
+  position: relative;
+  z-index: 3;
+}
+
+.history-hero h1 {
+  margin: 0;
+  color: #fff;
+  font-size: 30px;
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -.7px;
+}
+
+.history-hero p {
+  margin: 10px 0 0;
+  color: rgba(255,255,255,.85);
+  font-size: 14px;
+}
+
+
+/* ---------- MAIN CARD ---------- */
+
+.history-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  box-shadow: 0 4px 16px rgba(20, 30, 50, 0.045);
+  overflow: hidden;
+}
+
+
+/* ---------- RESULTS HEADER ---------- */
+
+.results-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 17px 20px 13px;
+}
+
+.results-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.results-count {
+  color: var(--general);
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 5px;
+}
+
+.results-info {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+
+/* ---------- TABLE ---------- */
+
+.history-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+
+.history-table thead th {
+  height: 42px;
+  padding: 0 14px;
+  background: var(--panel-2-solid);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 700;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: .35px;
+  white-space: nowrap;
+}
+
+.history-table tbody td {
+  padding: 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-size: 12.5px;
+  vertical-align: middle;
+}
+
+.history-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.history-table tbody tr {
+  transition: background .15s ease;
+}
+
+.history-table tbody tr:hover {
+  background: var(--panel-2-solid);
+}
+
+.mc-cell {
+  font-family: var(--mono);
+  font-size: 11.5px !important;
+  font-weight: 600;
+  color: var(--text) !important;
+  white-space: nowrap;
+}
+
+
+/* ---------- BADGES ---------- */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 23px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge.fresh {
+  color: #087f55;
+  background: rgba(12, 174, 107, .10);
+  border: 1px solid rgba(12, 174, 107, .18);
+}
+
+.badge.general {
+  color: #d85a00;
+  background: rgba(255, 103, 0, .10);
+  border: 1px solid rgba(255, 103, 0, .18);
+}
+
+
+/* ---------- ACTIONS ---------- */
+
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 10.5px;
+  font-weight: 600;
+  transition: .16s ease;
+}
+
+.action-icon:hover {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+  background: var(--panel-2-solid);
+}
+
+.action-icon.danger:hover {
+  border-color: #dc2626;
+  color: #dc2626;
+}
+
+
+/* ---------- EMPTY STATE ---------- */
+
+.empty-state {
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 35px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.empty-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  border: 2px solid var(--orange);
+  border-radius: 12px;
+  color: var(--orange);
+  font-size: 21px;
+}
+
+.empty-title {
+  color: var(--text);
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+
+/* ---------- RESPONSIVE ---------- */
+
+@media (max-width: 800px) {
+
+  .history-hero {
+    height: 200px;
+    padding: 25px 20px;
+  }
+
+  .history-hero h1 {
+    font-size: 23px;
+  }
+
+  .results-top {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .history-table {
+    min-width: 900px;
+  }
+}
+</style>
+{% endblock %}
+
+
+{% block content %}
+
+<div class="history-page">
+
+  <!-- ===================================================
+       HERO
+       =================================================== -->
+
+  <section class="history-hero">
+
+    <div class="history-hero-content">
+
+      <h1>
+        Scan History
+      </h1>
+
+      <p>
+        Your past scans, with results and duration.
+      </p>
+
+    </div>
+
+  </section>
+
+
+  <!-- ===================================================
+       MAIN CARD
+       =================================================== -->
+
+  <div class="history-card">
+
+    <div class="results-top">
+
+      <div>
+        <span class="results-title">Past Scans</span>
+        <span class="results-count" id="resultLabel"></span>
+      </div>
+
+      <div class="results-info">
+        Most recent first
+      </div>
+
+    </div>
+
+    <div id="wrap">
+
+      <div class="empty-state">
+
+        <div class="empty-icon">🕘</div>
+
+        <div class="empty-title">
+          No scans yet
+        </div>
+
+        <div>
+          Run a scan from the Dashboard to see history here.
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+{% endblock %}
+
+
+{% block extra_script %}
+<script>
+
+function fmtDuration(s) {
+
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+
+  return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+}
+
+
+async function load() {
+
+  const res = await fetch('/api/history');
+  const rows = await res.json();
+
+  const wrap = document.getElementById('wrap');
+
+  document.getElementById('resultLabel').textContent =
+    `${rows.length} scan${rows.length === 1 ? '' : 's'}`;
+
+  if (!rows.length) {
+
+    wrap.innerHTML = `
+      <div class="empty-state">
+
+        <div class="empty-icon">🕘</div>
+
+        <div class="empty-title">
+          No scans yet
+        </div>
+
+        <div>
+          Run a scan from the Dashboard to see history here.
+        </div>
+
+      </div>
+    `;
+
+    return;
+  }
+
+  let html = `
+
+    <div class="history-table-wrap">
+
+      <table class="history-table">
+
+        <thead>
+
+          <tr>
+            <th>Scan ID</th>
+            <th>Start MC</th>
+            <th>End MC</th>
+            <th>Checked</th>
+            <th>Qualified</th>
+            <th>Not Found</th>
+            <th>Duration</th>
+            <th>Date</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+
+        </thead>
+
+        <tbody>
+  `;
+
+  for (const r of rows) {
+
+    const statusBadge = r.status === 'Completed' ? 'fresh' : 'general';
+
+    html += `
+
+      <tr>
+
+        <td class="mc-cell">${r.scan_id}</td>
+        <td class="mc-cell">MC-${r.start_mc}</td>
+        <td class="mc-cell">MC-${r.end_mc}</td>
+        <td>${r.total_checked}</td>
+        <td><span class="badge fresh">${r.qualified}</span></td>
+        <td>${r.not_found}</td>
+        <td class="mc-cell">${fmtDuration(r.duration_seconds)}</td>
+        <td class="mc-cell" style="color:var(--muted)">${r.date}</td>
+        <td><span class="badge ${statusBadge}">${r.status}</span></td>
+
+        <td>
+
+          <div class="action-buttons">
+
+            <span
+              class="action-icon"
+              onclick="resumeScan(${r.start_mc}, ${r.end_mc})"
+            >
+              Resume
+            </span>
+
+            <span
+              class="action-icon danger"
+              onclick="removeScan('${r.scan_id}')"
+            >
+              Delete
+            </span>
+
+          </div>
+
+        </td>
+
+      </tr>
+    `;
+  }
+
+  html += `
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  wrap.innerHTML = html;
+}
+
+
+function resumeScan(start, end) {
+  window.location.href = `/dashboard?start_mc=${start}&end_mc=${end}`;
+}
+
+
+async function removeScan(id) {
+
+  await fetch(`/api/history/${id}`, { method: 'DELETE' });
+
+  load();
+}
+
+
+load();
+
+</script>
+{% endblock %}

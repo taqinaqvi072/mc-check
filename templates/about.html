@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+{% block title %}About Us{% endblock %}
+
+{% block preload_images %}
+<link rel="preload" as="image" href="/static/us_light.webp">
+<link rel="preload" as="image" href="/static/us_dark.webp">
+{% endblock %}
+
+
+{% block extra_style %}
+<style>
+/* =========================================================
+   ABOUT US — K&A STYLE
+   ========================================================= */
+
+.about-page {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* ---------- HERO ---------- */
+
+.about-hero {
+  height: 235px;
+  position: relative;
+  padding: 0 36px;
+  overflow: hidden;
+  border-radius: 15px;
+  margin-bottom: 22px;
+  border: 1px solid var(--border);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+
+  background-image:
+    linear-gradient(
+      rgba(0,0,0,.45),
+      rgba(0,0,0,.45)
+    ),
+    url("/static/us_light.webp");
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center 54%;
+}
+
+html[data-theme="dark"] .about-hero {
+  background-image:
+    linear-gradient(
+      rgba(0,0,0,.60),
+      rgba(0,0,0,.60)
+    ),
+    url("/static/us_dark.webp");
+  background-position: center 54%;
+}
+
+.about-hero-content {
+  position: relative;
+  z-index: 3;
+}
+
+.about-hero .logo-big {
+  width: 60px;
+  height: 60px;
+  border-radius: 16px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  padding: 6px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px -8px rgba(0,0,0,.35);
+}
+
+.about-hero .logo-big img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.about-hero h1 {
+  font-family: var(--display);
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -.7px;
+  color: #fff;
+  margin: 0 0 6px;
+}
+
+.about-hero p {
+  color: rgba(255,255,255,.85);
+  font-size: 14px;
+  margin: 0;
+}
+
+
+/* ---------- CARD ---------- */
+
+.about-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  box-shadow: 0 4px 16px rgba(20, 30, 50, 0.045);
+  padding: 22px;
+  margin-bottom: 16px;
+}
+
+
+/* ---------- GRID ---------- */
+
+.about-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 800px) {
+  .about-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.about-grid h3 {
+  font-family: var(--display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 8px;
+}
+
+.about-grid p,
+.about-grid li {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+
+/* ---------- FEATURE LIST ---------- */
+
+.feature-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.feature-list li {
+  padding: 7px 0;
+}
+
+.feature-list li:before {
+  content: "✓ ";
+  color: var(--fresh);
+  font-weight: 700;
+}
+
+
+/* ---------- CONTACT / CREDIT ---------- */
+
+.about-contact h3 {
+  font-family: var(--display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 8px;
+}
+
+.about-contact p {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.6;
+}
+
+
+@media (max-width: 650px) {
+
+  .about-hero {
+    height: 210px;
+    padding: 0 20px;
+  }
+
+  .about-hero h1 {
+    font-size: 24px;
+  }
+}
+</style>
+{% endblock %}
+
+
+{% block content %}
+
+<div class="about-page">
+
+  <!-- ===================================================
+       HERO
+       =================================================== -->
+
+  <section class="about-hero">
+
+    <div class="about-hero-content">
+
+      <div class="logo-big">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="K&A Logo">
+      </div>
+
+      <h1>K&A</h1>
+
+      <p>Scan. Verify. Connect.</p>
+
+    </div>
+
+  </section>
+
+
+  <!-- ===================================================
+       INFO GRID
+       =================================================== -->
+
+  <div class="about-card">
+
+    <div class="about-grid">
+
+      <div>
+
+        <h3>What is K&A?</h3>
+        <p>
+          K&A helps trucking and dispatch teams organize MC verification, carrier discovery,
+          qualification and follow-up workflows — turning hours of manual FMCSA lookups into minutes
+          of automated, filtered results.
+        </p>
+
+        <h3 style="margin-top:24px;">Our Mission</h3>
+        <p>
+          To give small and mid-size dispatch operations the same speed and clarity that large
+          carrier networks already have — without the enterprise price tag.
+        </p>
+
+      </div>
+
+      <div>
+
+        <h3>Features</h3>
+        <ul class="feature-list">
+          <li>Live MC range scanning against FMCSA SAFER</li>
+          <li>Automatic qualification filtering</li>
+          <li>Saved carriers &amp; call notes</li>
+          <li>Smart pickup line generator</li>
+          <li>Scan history &amp; reports</li>
+        </ul>
+
+        <h3 style="margin-top:24px;">Why K&A?</h3>
+        <p>
+          Built for dispatchers, by people who understand the workflow — every feature exists
+          because it solved a real bottleneck in a real day-to-day operation.
+        </p>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- ===================================================
+       CONTACT
+       =================================================== -->
+
+  <div class="about-card about-contact">
+
+    <h3>Contact</h3>
+
+    <p>
+      Created by Taqi Naqvi. If you'd like to get in touch, feel free to email
+      <a href="mailto:syedtaqirazanaqvishah@gmail.com">syedtaqirazanaqvishah@gmail.com</a>.
+    </p>
+
+  </div>
+
+</div>
+
+
+{% endblock %}

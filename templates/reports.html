@@ -1,0 +1,643 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+
+{% block preload_images %}
+<link rel="preload" as="image" href="/static/report_light.webp">
+<link rel="preload" as="image" href="/static/report_dark.webp">
+{% endblock %}
+
+{% block extra_style %}
+<style>
+/* =========================================================
+   REPORTS — MC SCOUT STYLE
+   ========================================================= */
+
+.reports-page {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* ---------- HERO ---------- */
+
+.reports-hero {
+  height: 235px;
+  position: relative;
+  padding: 27px 36px 0;
+  overflow: hidden;
+  border-radius: 15px;
+  margin-bottom: 22px;
+  border: 1px solid var(--border);
+
+  background-image:
+    linear-gradient(
+      rgba(0,0,0,.38),
+      rgba(0,0,0,.38)
+    ),
+    url("/static/report_light.webp");
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center 54%;
+}
+
+html[data-theme="dark"] .reports-hero {
+  background-image:
+    linear-gradient(
+      rgba(0,0,0,.55),
+      rgba(0,0,0,.55)
+    ),
+    url("/static/report_dark.webp");
+  background-position: center 54%;
+}
+
+.reports-hero-content {
+  position: relative;
+  z-index: 3;
+}
+
+.reports-hero h1 {
+  margin: 0;
+  color: #fff;
+  font-size: 30px;
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -.7px;
+}
+
+.reports-hero p {
+  margin: 10px 0 0;
+  color: rgba(255,255,255,.85);
+  font-size: 14px;
+}
+
+
+/* ---------- STAT GRID ---------- */
+
+.rpt-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 900px) {
+  .rpt-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.rpt-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: 0 4px 16px rgba(20, 30, 50, 0.045);
+}
+
+.rpt-card .label {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-weight: 700;
+}
+
+.rpt-card .value {
+  font-size: 24px;
+  font-weight: 750;
+  font-family: var(--mono);
+  color: var(--text);
+  margin-top: 8px;
+}
+
+
+/* ---------- SECTION CARD ---------- */
+
+.reports-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  box-shadow: 0 4px 16px rgba(20, 30, 50, 0.045);
+  overflow: hidden;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.reports-card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.reports-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+
+/* ---------- BUTTON (dashboard style) ---------- */
+
+.d-btn {
+  height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: .16s ease;
+}
+
+.d-btn:hover {
+  background: var(--panel-2-solid);
+}
+
+
+/* ---------- BARS ---------- */
+
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.bar-row:last-child {
+  margin-bottom: 0;
+}
+
+.bar-label {
+  width: 140px;
+  font-size: 12px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.bar-track {
+  flex: 1;
+  height: 10px;
+  background: var(--panel-2-solid);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width .3s ease;
+}
+
+.bar-value {
+  width: 44px;
+  text-align: right;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+
+/* ---------- TABLE ---------- */
+
+.reports-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.reports-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+
+.reports-table thead th {
+  height: 42px;
+  padding: 0 14px;
+  background: var(--panel-2-solid);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 700;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: .35px;
+  white-space: nowrap;
+}
+
+.reports-table tbody td {
+  padding: 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-size: 12.5px;
+  vertical-align: middle;
+}
+
+.reports-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.reports-table tbody tr:hover {
+  background: var(--panel-2-solid);
+}
+
+.mc-cell {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+
+/* ---------- BADGES ---------- */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 23px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge.fresh {
+  color: #087f55;
+  background: rgba(12, 174, 107, .10);
+  border: 1px solid rgba(12, 174, 107, .18);
+}
+
+.badge.general {
+  color: #d85a00;
+  background: rgba(255, 103, 0, .10);
+  border: 1px solid rgba(255, 103, 0, .18);
+}
+
+
+/* ---------- EMPTY STATE ---------- */
+
+.empty-state {
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 25px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+
+/* ---------- RESPONSIVE ---------- */
+
+@media (max-width: 650px) {
+
+  .reports-hero {
+    height: 200px;
+    padding: 25px 20px;
+  }
+
+  .reports-hero h1 {
+    font-size: 23px;
+  }
+
+  .reports-card-title-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .bar-label {
+    width: 90px;
+    font-size: 11px;
+  }
+
+  .reports-table {
+    min-width: 600px;
+  }
+}
+</style>
+{% endblock %}
+
+
+{% block content %}
+
+<div class="reports-page">
+
+  <!-- ===================================================
+       HERO
+       =================================================== -->
+
+  <section class="reports-hero">
+
+    <div class="reports-hero-content">
+
+      <h1>
+        Reports
+      </h1>
+
+      <p>
+        Analytics across all your scans.
+      </p>
+
+    </div>
+
+  </section>
+
+
+  <!-- ===================================================
+       STAT GRID
+       =================================================== -->
+
+  <div class="rpt-grid">
+
+    <div class="rpt-card">
+      <div class="label">Total MCs Scanned</div>
+      <div class="value" id="rTotal">0</div>
+    </div>
+
+    <div class="rpt-card">
+      <div class="label">Qualified Carriers</div>
+      <div class="value" id="rQualified" style="color:var(--fresh);">0</div>
+    </div>
+
+    <div class="rpt-card">
+      <div class="label">Qualification Rate</div>
+      <div class="value" id="rRate">0%</div>
+    </div>
+
+    <div class="rpt-card">
+      <div class="label">Avg Scan Speed</div>
+      <div class="value" id="rSpeed">—</div>
+    </div>
+
+    <div class="rpt-card">
+      <div class="label">Fresh Carriers</div>
+      <div class="value" id="rFresh" style="color:var(--fresh);">0</div>
+    </div>
+
+    <div class="rpt-card">
+      <div class="label">Reefer Carriers</div>
+      <div class="value" id="rReefer" style="color:var(--reefer);">0</div>
+    </div>
+
+    <div class="rpt-card">
+      <div class="label">General Freight</div>
+      <div class="value" id="rGeneral" style="color:var(--general);">0</div>
+    </div>
+
+    <div class="rpt-card">
+      <div class="label">Saved Carriers</div>
+      <div class="value" id="rSaved">0</div>
+    </div>
+
+  </div>
+
+
+  <!-- ===================================================
+       CARGO DISTRIBUTION
+       =================================================== -->
+
+  <div class="reports-card">
+
+    <div class="reports-card-title">
+      Cargo Distribution
+    </div>
+
+    <div id="cargoBars" style="margin-top:16px;"></div>
+
+  </div>
+
+
+  <!-- ===================================================
+       TOP STATES
+       =================================================== -->
+
+  <div class="reports-card">
+
+    <div class="reports-card-title">
+      Top States
+    </div>
+
+    <div id="stateBars" style="margin-top:16px;">
+
+      <div class="empty-state">
+        No state data yet.
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- ===================================================
+       SCAN ACTIVITY
+       =================================================== -->
+
+  <div class="reports-card">
+
+    <div class="reports-card-title-row">
+
+      <div class="reports-card-title">
+        Scan Activity
+      </div>
+
+      <button class="d-btn" onclick="exportReport()">
+        ↓ &nbsp; Export Report (CSV)
+      </button>
+
+    </div>
+
+    <div id="activityWrap">
+
+      <div class="empty-state">
+        No scans yet.
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+{% endblock %}
+
+
+{% block extra_script %}
+<script>
+
+function bar(label, value, max, color) {
+
+  const pct = max ? Math.round((value / max) * 100) : 0;
+
+  return `
+    <div class="bar-row">
+      <div class="bar-label">${label}</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${pct}%; background:${color};"></div>
+      </div>
+      <div class="bar-value">${value}</div>
+    </div>
+  `;
+}
+
+
+async function load() {
+
+  const [histRes, savedRes] = await Promise.all([
+    fetch('/api/history'),
+    fetch('/api/saved')
+  ]);
+
+  const history = await histRes.json();
+  const saved = await savedRes.json();
+
+  const totalScanned = history.reduce((s, h) => s + h.total_checked, 0);
+  const totalQualified = history.reduce((s, h) => s + h.qualified, 0);
+  const totalDuration = history.reduce((s, h) => s + h.duration_seconds, 0);
+
+  const cargoTotals = { fresh: 0, reefer: 0, general: 0 };
+  const stateTotals = {};
+
+  history.forEach(h => {
+    for (const [k, v] of Object.entries(h.cargo_tally || {})) {
+      cargoTotals[k] = (cargoTotals[k] || 0) + v;
+    }
+    for (const [k, v] of Object.entries(h.state_tally || {})) {
+      stateTotals[k] = (stateTotals[k] || 0) + v;
+    }
+  });
+
+  document.getElementById('rTotal').textContent = totalScanned;
+  document.getElementById('rQualified').textContent = totalQualified;
+
+  document.getElementById('rRate').textContent =
+    totalScanned ? Math.round((totalQualified / totalScanned) * 100) + '%' : '0%';
+
+  document.getElementById('rSpeed').textContent =
+    totalDuration ? (totalScanned / (totalDuration / 60)).toFixed(0) + '/min' : '—';
+
+  document.getElementById('rFresh').textContent = cargoTotals.fresh || 0;
+  document.getElementById('rReefer').textContent = cargoTotals.reefer || 0;
+  document.getElementById('rGeneral').textContent = cargoTotals.general || 0;
+  document.getElementById('rSaved').textContent = saved.length;
+
+
+  const maxCargo = Math.max(cargoTotals.fresh, cargoTotals.reefer, cargoTotals.general, 1);
+
+  document.getElementById('cargoBars').innerHTML =
+    bar('🟢 Fresh', cargoTotals.fresh, maxCargo, 'var(--fresh)') +
+    bar('🔵 Reefer', cargoTotals.reefer, maxCargo, 'var(--reefer)') +
+    bar('🟠 General Freight', cargoTotals.general, maxCargo, 'var(--general)');
+
+
+  const stateEntries = Object.entries(stateTotals)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8);
+
+  if (stateEntries.length) {
+
+    const maxState = Math.max(...stateEntries.map(e => e[1]));
+
+    document.getElementById('stateBars').innerHTML =
+      stateEntries.map(([s, v]) => bar(s, v, maxState, 'var(--accent-blue, #3d7fff)')).join('');
+  }
+
+
+  const actWrap = document.getElementById('activityWrap');
+
+  if (!history.length) {
+
+    actWrap.innerHTML = '<div class="empty-state">No scans yet.</div>';
+
+  } else {
+
+    let html = `
+
+      <div class="reports-table-wrap">
+
+        <table class="reports-table">
+
+          <thead>
+
+            <tr>
+              <th>Date</th>
+              <th>Range</th>
+              <th>Checked</th>
+              <th>Qualified</th>
+              <th>Status</th>
+            </tr>
+
+          </thead>
+
+          <tbody>
+    `;
+
+    history.slice(0, 15).forEach(h => {
+
+      html += `
+
+        <tr>
+          <td class="mc-cell" style="color:var(--muted)">${h.date}</td>
+          <td class="mc-cell">MC-${h.start_mc} → MC-${h.end_mc}</td>
+          <td>${h.total_checked}</td>
+          <td><span class="badge fresh">${h.qualified}</span></td>
+          <td><span class="badge ${h.status === 'Completed' ? 'fresh' : 'general'}">${h.status}</span></td>
+        </tr>
+      `;
+    });
+
+    html += `
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    actWrap.innerHTML = html;
+  }
+
+  window._reportHistory = history;
+}
+
+
+function exportReport() {
+
+  const history = window._reportHistory || [];
+
+  if (!history.length) {
+    showToast('No scan data to export');
+    return;
+  }
+
+  const headers = [
+    'scan_id', 'start_mc', 'end_mc', 'total_checked',
+    'qualified', 'not_found', 'duration_seconds', 'date', 'status'
+  ];
+
+  let csv = headers.join(',') + '\n';
+
+  history.forEach(h => {
+    csv += headers.map(k => `"${(h[k] ?? '').toString()}"`).join(',') + '\n';
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv' });
+
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'mc_scout_report.csv';
+  a.click();
+}
+
+
+load();
+
+</script>
+{% endblock %}

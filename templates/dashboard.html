@@ -1,0 +1,2612 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+
+{% block preload_images %}
+<link rel="preload" as="image" href="/static/dashboard_lightt.webp">
+<link rel="preload" as="image" href="/static/dashboard_darkk.webp">
+{% endblock %}
+
+{% block extra_style %}
+
+<style>
+
+/* =====================================================
+   DASHBOARD — REFERENCE MATCH
+   ===================================================== */
+
+
+   
+.dashboard {
+
+  min-height: 100%;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(246,248,251,.35),
+      rgba(246,248,251,1) 55%
+    );
+
+}
+
+html[data-theme="dark"] .dashboard {
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(10,15,22,.20),
+      rgba(10,15,22,1) 60%
+    );
+
+}
+
+
+/* =====================================================
+   HERO
+   ===================================================== */
+
+.dashboard-hero {
+  height: 235px;
+  position: relative;
+  padding: 27px 36px 0;
+  overflow: hidden;
+  background-image:
+    linear-gradient(
+      90deg,
+      rgba(255,255,255,.75) 0%,
+      rgba(255,255,255,.55) 22%,
+      rgba(255,255,255,.20) 58%,
+      rgba(255,255,255,.0) 100%
+    ),
+    url("/static/dashboard_lightt.webp");
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center 54%;
+  border-bottom: 1px solid rgba(220,225,232,.5);
+}
+
+html[data-theme="dark"] .dashboard-hero {
+  background-image:
+    linear-gradient(
+      90deg,
+      rgba(9,14,21,.80) 0%,
+      rgba(9,14,21,.55) 25%,
+      rgba(9,14,21,.22) 62%,
+      rgba(9,14,21,.0) 100%
+    ),
+    url("/static/dashboard_darkk.webp");
+  background-position: center 54%;
+}
+
+
+/* =====================================================
+   CONTENT
+   ===================================================== */
+
+
+
+
+.dashboard-grid {
+
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 2fr)
+    minmax(300px, .80fr);
+
+  gap: 16px;
+
+}
+
+
+/* =====================================================
+   CARD
+   ===================================================== */
+
+.d-card {
+
+  background:
+    rgba(255,255,255,.97);
+
+  border:
+    1px solid #e0e5ec;
+
+  border-radius: 15px;
+
+  box-shadow:
+    0 7px 22px
+    rgba(35,48,70,.055);
+
+}
+
+
+html[data-theme="dark"]
+.d-card {
+
+  background:
+    rgba(20,27,37,.97);
+
+  border-color:
+    #293442;
+
+  box-shadow:
+    0 10px 30px
+    rgba(0,0,0,.22);
+
+}
+
+
+/* =====================================================
+   SCANNER
+   ===================================================== */
+
+.scanner-card {
+
+  padding: 17px;
+
+}
+
+
+.scan-controls {
+
+  display: grid;
+
+  grid-template-columns:
+    162px
+    162px
+    1fr
+    84px
+    156px;
+
+  align-items: end;
+
+  gap: 10px;
+
+}
+
+
+.field {
+
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 7px;
+
+}
+
+
+.field label {
+
+  color: #293548;
+
+  font-size: 10px;
+
+  font-weight: 700;
+
+  text-transform: uppercase;
+
+}
+
+
+html[data-theme="dark"]
+.field label {
+
+  color: #c5ceda;
+
+}
+
+
+.field input {
+
+  width: 100%;
+
+  height: 43px;
+
+  padding: 0 13px;
+
+  border:
+    1px solid #dce2e9;
+
+  border-radius: 9px;
+
+  outline: none;
+
+  background: #fff;
+
+  color: #172235;
+
+  font-size: 13px;
+
+}
+
+
+html[data-theme="dark"]
+.field input {
+
+  background: #111923;
+
+  border-color: #303b49;
+
+  color: #fff;
+
+}
+
+
+.field input:focus {
+
+  border-color:
+    var(--orange);
+
+  box-shadow:
+    0 0 0 3px
+    rgba(255,101,0,.09);
+
+}
+
+
+/* BUTTON */
+
+.d-btn {
+
+  height: 43px;
+
+  border:
+    1px solid #dce2e9;
+
+  border-radius: 9px;
+
+  background: #fff;
+
+  color: #253044;
+
+  font-size: 12px;
+
+  font-weight: 700;
+
+  white-space: nowrap;
+
+}
+
+
+html[data-theme="dark"]
+.d-btn {
+
+  background: #18212d;
+
+  color: #edf2f7;
+
+  border-color: #303b49;
+
+}
+
+
+.d-btn-primary {
+
+  border-color:
+    var(--orange);
+
+  background:
+    var(--orange);
+
+  color: #fff;
+
+  box-shadow:
+    0 5px 12px
+    rgba(255,101,0,.17);
+
+}
+
+
+.d-btn-primary:hover {
+
+  background:
+    var(--orange-dark);
+
+}
+
+
+.d-btn:disabled {
+
+  opacity: .45;
+
+  cursor: not-allowed;
+
+}
+
+
+/* =====================================================
+   FAST MODE / NO-PROXY FALLBACK BANNER
+   ===================================================== */
+
+.fast-mode-banner {
+
+  display: none;
+
+  align-items: flex-start;
+
+  gap: 11px;
+
+  margin: 0 0 14px;
+
+  padding: 13px 16px;
+
+  border:
+    1px solid #f3c68e;
+
+  border-radius: 12px;
+
+  background:
+    #fff7ec;
+
+  color: #7a4a00;
+
+  font-size: 12.5px;
+
+  line-height: 1.5;
+
+}
+
+
+html[data-theme="dark"]
+.fast-mode-banner {
+
+  background:
+    rgba(255,166,0,.10);
+
+  border-color:
+    rgba(255,166,0,.35);
+
+  color:
+    #ffcf85;
+
+}
+
+
+.fast-mode-banner .icon {
+
+  flex-shrink: 0;
+
+  font-size: 16px;
+
+  line-height: 1.4;
+
+}
+
+
+.fast-mode-banner strong {
+
+  font-weight: 750;
+
+}
+
+
+/* =====================================================
+   PROGRESS
+   ===================================================== */
+
+.progress-area {
+
+  margin-top: 27px;
+
+}
+
+
+.progress-header {
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  margin-bottom: 7px;
+
+}
+
+
+#progressPct {
+
+  color:
+    var(--orange);
+
+  font-size: 12px;
+
+  font-weight: 750;
+
+}
+
+
+#rangeLabel {
+
+  color: #8993a1;
+
+  font-size: 10px;
+
+  font-family: monospace;
+
+}
+
+
+.progress-track {
+
+  width: 100%;
+
+  height: 10px;
+
+  overflow: hidden;
+
+  border-radius: 999px;
+
+  background: #edf0f4;
+
+}
+
+
+html[data-theme="dark"]
+.progress-track {
+
+  background: #252e39;
+
+}
+
+
+.progress-fill {
+
+  width: 0%;
+
+  height: 100%;
+
+  border-radius: inherit;
+
+  background:
+    var(--orange);
+
+  transition:
+    width .3s ease;
+
+}
+
+
+/* =====================================================
+   STATS
+   ===================================================== */
+
+.stats {
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(7,1fr);
+
+  gap: 9px;
+
+  margin-top: 16px;
+
+}
+
+
+.stat {
+
+  min-width: 0;
+
+  min-height: 66px;
+
+  padding: 10px 11px;
+
+  border:
+    1px solid #e0e5eb;
+
+  border-radius: 10px;
+
+  background:
+    #fbfcfd;
+
+}
+
+
+html[data-theme="dark"]
+.stat {
+
+  background:
+    #111923;
+
+  border-color:
+    #2b3542;
+
+}
+
+
+.stat .label {
+
+  color: #697486;
+
+  font-size: 9px;
+
+  font-weight: 650;
+
+  text-transform: uppercase;
+
+}
+
+
+html[data-theme="dark"]
+.stat .label {
+
+  color: #929eae;
+
+}
+
+
+.stat .value {
+
+  margin-top: 6px;
+
+  color: #172235;
+
+  font-size: 18px;
+
+  line-height: 1;
+
+  font-weight: 750;
+
+  white-space: nowrap;
+
+}
+
+
+html[data-theme="dark"]
+.stat .value {
+
+  color: #f1f4f8;
+
+}
+
+
+.stat.good .value {
+
+  color:
+    var(--fresh);
+
+}
+
+
+.stat.error-stat .value {
+
+  color:
+    var(--orange);
+
+}
+
+
+/* =====================================================
+   LIVE LOG
+   ===================================================== */
+
+.log-card {
+
+  margin-top: 15px;
+
+  padding: 17px;
+
+  min-height: 265px;
+
+}
+
+
+.card-title-row {
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+}
+
+
+.card-title {
+
+  color: #172235;
+
+  font-size: 15px;
+
+  font-weight: 750;
+
+}
+
+
+html[data-theme="dark"]
+.card-title {
+
+  color: #f1f4f8;
+
+}
+
+
+.card-count {
+
+  margin-left: 9px;
+
+  color:
+    var(--orange);
+
+  font-size: 11px;
+
+  font-weight: 650;
+
+}
+
+
+.clear-btn {
+
+  height: 42px;
+
+  padding: 0 16px;
+
+}
+
+
+/* EMPTY */
+
+.log-empty {
+
+  min-height: 195px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  flex-direction: column;
+
+  text-align: center;
+
+}
+
+
+.log-empty-icon {
+
+  width: 43px;
+
+  height: 43px;
+
+  margin-bottom: 11px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  border:
+    2px solid var(--orange);
+
+  border-radius: 10px;
+
+  color: var(--orange);
+
+}
+
+
+.log-empty-icon svg {
+
+  width: 25px;
+
+  height: 25px;
+
+}
+
+
+.log-empty-title {
+
+  color: #263348;
+
+  font-size: 13px;
+
+  font-weight: 700;
+
+}
+
+
+html[data-theme="dark"]
+.log-empty-title {
+
+  color: #e9edf3;
+
+}
+
+
+.log-empty-sub {
+
+  margin-top: 5px;
+
+  color: #778294;
+
+  font-size: 11px;
+
+}
+
+
+/* =====================================================
+   RIGHT COLUMN
+   ===================================================== */
+
+.right-card {
+
+  padding: 17px;
+
+}
+
+
+.right-title {
+
+  margin: 0 0 13px;
+
+  color: #172235;
+
+  font-size: 15px;
+
+  font-weight: 750;
+
+}
+
+
+html[data-theme="dark"]
+.right-title {
+
+  color: #f1f4f8;
+
+}
+
+
+/* =====================================================
+   CARGO
+   ===================================================== */
+
+.cargo-list {
+
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 10px;
+
+}
+
+
+.cargo-item {
+
+  min-height: 59px;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 13px;
+
+  padding: 10px 13px;
+
+  border:
+    1px solid #e0e5eb;
+
+  border-radius: 9px;
+
+  background:
+    #fbfcfd;
+
+}
+
+
+html[data-theme="dark"]
+.cargo-item {
+
+  background:
+    #111923;
+
+  border-color:
+    #2b3542;
+
+}
+
+
+.cargo-dot {
+
+  width: 15px;
+
+  height: 15px;
+
+  flex-shrink: 0;
+
+  border-radius: 4px;
+
+}
+
+
+.cargo-dot.fresh {
+
+  background:
+    #09a96c;
+
+}
+
+
+.cargo-dot.reefer {
+
+  background:
+    #1769e0;
+
+}
+
+
+.cargo-dot.general {
+
+  background:
+    #ff6500;
+
+}
+
+
+.cargo-name {
+
+  color: #2c384c;
+
+  font-size: 12px;
+
+  font-weight: 700;
+
+}
+
+
+html[data-theme="dark"]
+.cargo-name {
+
+  color: #e8edf4;
+
+}
+
+
+.cargo-desc {
+
+  margin-top: 3px;
+
+  color: #8a95a5;
+
+  font-size: 10px;
+
+}
+
+
+/* =====================================================
+   PICKUP
+   ===================================================== */
+
+.pickup-card {
+
+  margin-top: 15px;
+
+}
+
+
+.pickup-title {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 8px;
+
+}
+
+
+.pickup-icon {
+
+  color:
+    var(--orange);
+
+  font-size: 15px;
+
+}
+
+
+.pickup-box {
+
+  padding: 15px;
+
+  border:
+    1px solid #e1e6ec;
+
+  border-radius: 10px;
+
+  background:
+    #fbfcfd;
+
+}
+
+
+html[data-theme="dark"]
+.pickup-box {
+
+  background:
+    #111923;
+
+  border-color:
+    #2b3542;
+
+}
+
+
+.pickup-line {
+
+  min-height: 78px;
+
+  color: #4c596d;
+
+  font-size: 13px;
+
+  line-height: 1.65;
+
+}
+
+
+html[data-theme="dark"]
+.pickup-line {
+
+  color: #c4ceda;
+
+}
+
+
+.pickup-actions {
+
+  display: grid;
+
+  grid-template-columns: 1fr 1.15fr;
+
+  gap: 9px;
+
+}
+
+
+/* =====================================================
+   TABLE
+   ===================================================== */
+
+.log-scroll {
+
+  max-height: 210px;
+
+  margin-top: 15px;
+
+  overflow: auto;
+
+}
+
+
+.log-scroll table {
+
+  width: 100%;
+
+  border-collapse: collapse;
+
+}
+
+
+.log-scroll th {
+
+  padding:
+    8px;
+
+  color: #7a8494;
+
+  border-bottom:
+    1px solid #e4e8ed;
+
+  font-size: 9px;
+
+  text-align: left;
+
+  text-transform: uppercase;
+
+}
+
+
+.log-scroll td {
+
+  padding:
+    9px 8px;
+
+  color: #3d495c;
+
+  border-bottom:
+    1px solid #edf0f3;
+
+  font-size: 11px;
+
+}
+
+
+html[data-theme="dark"]
+.log-scroll th,
+html[data-theme="dark"]
+.log-scroll td {
+
+  border-color:
+    #2b3542;
+
+}
+
+
+html[data-theme="dark"]
+.log-scroll td {
+
+  color: #c7d0db;
+
+}
+
+
+.badge {
+
+  display: inline-flex;
+
+  padding:
+    4px 8px;
+
+  border-radius: 999px;
+
+  font-size: 9px;
+
+  font-weight: 700;
+
+}
+
+
+.badge.fresh {
+
+  color: #087b50;
+
+  background: #e6f7f0;
+
+}
+
+
+.badge.reefer {
+
+  color: #1759bd;
+
+  background: #e8f0ff;
+
+}
+
+
+.badge.general {
+
+  color: #c25000;
+
+  background: #fff0e5;
+
+}
+
+
+.badge.error {
+
+  color: #b91c1c;
+
+  background: #feecec;
+
+}
+
+
+.badge.neutral {
+
+  color: #6b7585;
+
+  background: #eef1f4;
+
+}
+
+
+.error-msg {
+
+  display: none;
+
+  margin-top: 9px;
+
+  padding: 8px 10px;
+
+  border-radius: 7px;
+
+  background: #fff0eb;
+
+  color: #c44c00;
+
+  font-size: 11px;
+
+}
+
+
+/* =====================================================
+   RESPONSIVE
+   ===================================================== */
+
+@media(max-width:1150px) {
+
+  .scan-controls {
+
+    grid-template-columns:
+      1fr 1fr 1.2fr;
+
+  }
+
+  .stats {
+
+    grid-template-columns:
+      repeat(4,1fr);
+
+  }
+
+}
+
+
+@media(max-width:900px) {
+
+  .dashboard-grid {
+
+    grid-template-columns:
+      1fr;
+
+  }
+
+}
+
+
+@media(max-width:650px) {
+
+  .dashboard-hero {
+
+    height: 200px;
+
+    padding:
+      25px 20px;
+
+  }
+
+  .dashboard-body {
+
+    padding:
+      0 16px 20px;
+
+  }
+
+  .scan-controls {
+
+    grid-template-columns:
+      1fr;
+
+  }
+
+  .stats {
+
+    grid-template-columns:
+      repeat(2,1fr);
+
+  }
+
+}
+
+</style>
+
+{% endblock %}
+
+
+{% block content %}
+
+<div class="dashboard">
+
+
+  <!-- ===================================================
+       HERO
+       =================================================== -->
+
+  <section class="dashboard-hero">
+
+    <div class="dashboard-hero-content">
+
+      <h1>
+        Dashboard
+      </h1>
+
+      <p>
+        Scan MC ranges, verify carriers, and track qualification live.
+      </p>
+
+    </div>
+
+  </section>
+
+
+
+  <!-- ===================================================
+       BODY
+       =================================================== -->
+
+  <div class="dashboard-body">
+
+    <!-- FAST MODE / NO-PROXY FALLBACK BANNER (shown when all Webshare
+         accounts are exhausted for the month) -->
+    <div
+      class="fast-mode-banner"
+      id="fastModeBanner"
+    >
+
+      <span class="icon">⚠️</span>
+
+      <span id="fastModeBannerText"></span>
+
+    </div>
+
+
+    <div class="dashboard-grid">
+
+
+      <!-- =================================================
+           LEFT
+           ================================================= -->
+
+      <div>
+
+
+        <!-- SCANNER -->
+
+        <div class="d-card scanner-card">
+
+          <div class="scan-controls">
+
+
+            <div class="field">
+
+              <label>
+                Start MC
+              </label>
+
+              <input
+                type="number"
+                id="startMc"
+                placeholder="Start"
+              >
+
+            </div>
+
+
+            <div class="field">
+
+              <label>
+                End MC
+              </label>
+
+              <input
+                type="number"
+                id="endMc"
+                placeholder="Stop"
+              >
+
+            </div>
+
+
+            <button
+              class="d-btn d-btn-primary"
+              id="startBtn"
+              onclick="startRun()"
+            >
+              Start Scanning
+            </button>
+
+
+            <button
+              class="d-btn"
+              id="stopBtn"
+              onclick="stopRun()"
+              disabled
+            >
+              Stop
+            </button>
+
+
+            <button
+              class="d-btn"
+              id="downloadBtn"
+              onclick="downloadCsv()"
+              disabled
+            >
+              ↓ &nbsp; Download CSV
+            </button>
+
+          </div>
+
+
+          <div
+            class="error-msg"
+            id="errorMsg"
+          ></div>
+
+
+          <div
+            id="forceResetRow"
+            style="display:none; margin-top:9px;"
+          >
+
+            <button
+              class="d-btn"
+              style="width:100%;"
+              onclick="forceReset()"
+            >
+              ⚠️ &nbsp; Scan seems stuck — Force New Scan
+            </button>
+
+          </div>
+
+
+          <!-- PROGRESS -->
+
+          <div class="progress-area">
+
+            <div class="progress-header">
+
+              <span id="progressPct">
+                0%
+              </span>
+
+              <span id="rangeLabel">
+              </span>
+
+            </div>
+
+
+            <div class="progress-track">
+
+              <div
+                class="progress-fill"
+                id="progressBar"
+              ></div>
+
+            </div>
+
+          </div>
+
+
+          <!-- STATS -->
+
+          <div class="stats">
+
+
+            <div class="stat">
+
+              <div class="label">
+                Checked
+              </div>
+
+              <div
+                class="value"
+                id="progressText"
+              >
+                0 / 0
+              </div>
+
+            </div>
+
+
+            <div class="stat good">
+
+              <div class="label">
+                Qualified
+              </div>
+
+              <div
+                class="value"
+                id="qualifiedCount"
+              >
+                0
+              </div>
+
+            </div>
+
+
+            <div class="stat error-stat">
+
+              <div class="label">
+                Errors
+              </div>
+
+              <div
+                class="value"
+                id="errorCount"
+              >
+                0
+              </div>
+
+            </div>
+
+
+            <div class="stat">
+
+              <div class="label">
+                Elapsed
+              </div>
+
+              <div
+                class="value"
+                id="elapsedText"
+              >
+                00:00
+              </div>
+
+            </div>
+
+
+            <div class="stat">
+
+              <div class="label">
+                Time Left
+              </div>
+
+              <div
+                class="value"
+                id="etaText"
+              >
+                —
+              </div>
+
+            </div>
+
+
+            <div class="stat">
+
+              <div class="label">
+                Speed
+              </div>
+
+              <div
+                class="value"
+                id="speedText"
+              >
+                —
+              </div>
+
+            </div>
+
+
+            <div class="stat">
+
+              <div class="label">
+                Status
+              </div>
+
+              <div
+                class="value"
+                id="statusText"
+                style="font-size:16px;"
+              >
+                Idle
+              </div>
+
+            </div>
+
+
+          </div>
+
+        </div>
+
+
+
+        <!-- =================================================
+             LIVE LOG
+             ================================================= -->
+
+        <div class="d-card log-card">
+
+          <div class="card-title-row">
+
+            <div class="card-title">
+
+              Live Log
+
+              <span class="card-count">
+                Showing latest 25
+              </span>
+
+            </div>
+
+
+            <button
+              class="d-btn clear-btn"
+              onclick="clearLog()"
+            >
+              🗑 &nbsp; Clear Log
+            </button>
+
+          </div>
+
+
+          <div
+            class="log-scroll"
+            id="logTableWrap"
+          >
+
+            <div class="log-empty">
+
+              <div class="log-empty-icon">
+
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linecap="round"
+                >
+
+                  <path d="M8 6h8"/>
+                  <path d="M8 10h8"/>
+                  <path d="M8 14h5"/>
+
+                  <rect
+                    x="4"
+                    y="3"
+                    width="16"
+                    height="18"
+                    rx="3"
+                  />
+
+                </svg>
+
+              </div>
+
+
+              <div class="log-empty-title">
+                No checks yet.
+              </div>
+
+
+              <div class="log-empty-sub">
+                Start scanning to see live updates here.
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+
+      <!-- =================================================
+           RIGHT
+           ================================================= -->
+
+      <div>
+
+
+        <!-- CARGO GUIDE -->
+
+        <div class="d-card right-card">
+
+          <h3 class="right-title">
+            Cargo Type Guide
+          </h3>
+
+
+          <div class="cargo-list">
+
+
+            <div class="cargo-item">
+
+              <span class="cargo-dot fresh"></span>
+
+              <div>
+
+                <div class="cargo-name">
+                  Fresh
+                </div>
+
+                <div class="cargo-desc">
+                  Perishable goods
+                </div>
+
+              </div>
+
+            </div>
+
+
+            <div class="cargo-item">
+
+              <span class="cargo-dot reefer"></span>
+
+              <div>
+
+                <div class="cargo-name">
+                  Reefer
+                </div>
+
+                <div class="cargo-desc">
+                  Temperature controlled
+                </div>
+
+              </div>
+
+            </div>
+
+
+            <div class="cargo-item">
+
+              <span class="cargo-dot general"></span>
+
+              <div>
+
+                <div class="cargo-name">
+                  General Freight
+                </div>
+
+                <div class="cargo-desc">
+                  Dry / general cargo
+                </div>
+
+              </div>
+
+            </div>
+
+
+          </div>
+
+        </div>
+
+
+
+        <!-- SMART PICKUP -->
+
+        <div class="d-card right-card pickup-card">
+
+          <h3 class="right-title pickup-title">
+
+            <span class="pickup-icon">
+              💬
+            </span>
+
+            Smart Pickup Line
+
+          </h3>
+
+
+          <div class="pickup-box">
+
+            <div
+              class="pickup-line"
+              id="dashPickupLine"
+            >
+              Loading a line…
+            </div>
+
+
+            <div class="pickup-actions">
+
+              <button
+                class="d-btn"
+                onclick="copyDashLine()"
+              >
+                📄 &nbsp; Copy
+              </button>
+
+
+              <button
+                class="d-btn d-btn-primary"
+                onclick="randomizeDashLine()"
+              >
+                ⟳ &nbsp; Get Another Line
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+{% endblock %}
+
+
+
+{% block extra_script %}
+
+<script src="/static/pickup_lines.js"></script>
+
+<script>
+
+/* =====================================================
+   DASHBOARD SCANNER LOGIC
+   ===================================================== */
+
+let polling = null;
+let latestResults = [];
+let dashLine = '';
+
+
+/* BADGE */
+
+function badgeFor(entry) {
+
+  if (entry.fetch_error) {
+
+    return '<span class="badge general">Error — retry</span>';
+
+  }
+
+  if (entry.not_found) {
+
+    return '<span class="badge error">Not Found</span>';
+
+  }
+
+  if (entry.qualified) {
+
+    return '<span class="badge fresh">Qualified</span>';
+
+  }
+
+  return '<span class="badge neutral">Skip</span>';
+
+}
+
+
+/* REASON */
+
+function reasonFor(entry) {
+
+  if (entry.fetch_error)
+    return 'Connection/timeout — retry';
+
+  if (entry.not_found)
+    return '—';
+
+  if (!entry.entity_type)
+    return 'unknown';
+
+  if (
+    entry.entity_type.toUpperCase()
+    !== 'CARRIER'
+  )
+    return entry.entity_type;
+
+  const auth =
+    (entry.authority_status || '')
+    .toUpperCase();
+
+  if (
+    auth.includes('NOT AUTHORIZED')
+  )
+    return 'Not authorized';
+
+  if (
+    auth.includes('OUT-OF-SERVICE')
+  )
+    return 'Out of service';
+
+  if (
+    entry.power_units === null ||
+    entry.power_units === undefined
+  )
+    return 'PU unknown';
+
+  if (entry.qualified)
+    return 'Cargo match';
+
+  return 'Cargo mismatch';
+
+}
+
+
+/* CARGO */
+
+function cargoBadges(cargoStr) {
+
+  if (!cargoStr)
+    return '—';
+
+  const items =
+    cargoStr
+      .split(',')
+      .map(
+        s => s.trim()
+      )
+      .filter(Boolean);
+
+
+  function colorFor(label) {
+
+    const l =
+      label.toLowerCase();
+
+    if (
+      l.includes('refrigerated') ||
+      l.includes('frozen') ||
+      l.includes('temperature')
+    )
+      return 'reefer';
+
+    if (
+      l.includes('fresh') ||
+      l.includes('perishable')
+    )
+      return 'fresh';
+
+    if (
+      l.includes('general')
+    )
+      return 'general';
+
+    return 'neutral';
+
+  }
+
+
+  return items
+    .map(
+      item =>
+        `<span class="badge ${colorFor(item)}">${item}</span>`
+    )
+    .join(' ');
+
+}
+
+
+/* =====================================================
+   LOG
+   ===================================================== */
+
+function renderLog(rows) {
+
+  const wrap =
+    document.getElementById(
+      'logTableWrap'
+    );
+
+
+  if (!rows || !rows.length) {
+
+    wrap.innerHTML = `
+
+      <div class="log-empty">
+
+        <div class="log-empty-icon">
+
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.7"
+          >
+
+            <path d="M8 6h8"/>
+            <path d="M8 10h8"/>
+            <path d="M8 14h5"/>
+
+            <rect
+              x="4"
+              y="3"
+              width="16"
+              height="18"
+              rx="3"
+            />
+
+          </svg>
+
+        </div>
+
+        <div class="log-empty-title">
+          No checks yet.
+        </div>
+
+        <div class="log-empty-sub">
+          Start scanning to see live updates here.
+        </div>
+
+      </div>
+
+    `;
+
+    return;
+
+  }
+
+
+  let html = `
+
+    <table>
+
+      <thead>
+
+        <tr>
+          <th>MC</th>
+          <th>Status</th>
+          <th>Entity</th>
+          <th>PU</th>
+          <th>Cargo</th>
+          <th>Checked At</th>
+          <th>Note</th>
+        </tr>
+
+      </thead>
+
+      <tbody>
+
+  `;
+
+
+  for (const e of rows) {
+
+    html += `
+
+      <tr>
+
+        <td class="mc-cell">
+          MC-${e.mc_number}
+        </td>
+
+        <td>
+          ${badgeFor(e)}
+        </td>
+
+        <td>
+          ${e.entity_type || '—'}
+        </td>
+
+        <td>
+          ${e.power_units ?? '—'}
+        </td>
+
+        <td>
+          ${cargoBadges(e.cargo_carried)}
+        </td>
+
+        <td>
+          ${e.checked_at || '—'}
+        </td>
+
+        <td>
+          ${reasonFor(e)}
+        </td>
+
+      </tr>
+
+    `;
+
+  }
+
+
+  html += `
+      </tbody>
+    </table>
+  `;
+
+
+  wrap.innerHTML =
+    html;
+
+}
+
+
+/* CLEAR */
+
+function clearLog() {
+
+  renderLog([]);
+
+}
+
+
+/* DURATION */
+
+function formatDuration(seconds) {
+
+  if (
+    seconds === null ||
+    seconds === undefined ||
+    !isFinite(seconds)
+  )
+    return '—';
+
+
+  seconds =
+    Math.max(
+      0,
+      Math.round(seconds)
+    );
+
+
+  const h =
+    Math.floor(
+      seconds / 3600
+    );
+
+  const m =
+    Math.floor(
+      (seconds % 3600) / 60
+    );
+
+  const s =
+    seconds % 60;
+
+
+  if (h > 0)
+    return `${h}h ${String(m).padStart(2,'0')}m`;
+
+
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+
+}
+
+
+/* =====================================================
+   FAST MODE / NO-PROXY FALLBACK BANNER
+   ===================================================== */
+
+function updateFastModeBanner(data) {
+
+  const banner =
+    document.getElementById(
+      'fastModeBanner'
+    );
+
+  if (data && data.banner_message) {
+
+    document.getElementById(
+      'fastModeBannerText'
+    ).textContent =
+      data.banner_message;
+
+    banner.style.display =
+      'flex';
+
+  } else {
+
+    banner.style.display =
+      'none';
+
+  }
+
+}
+
+
+/* =====================================================
+   POLL
+   ===================================================== */
+
+async function poll() {
+
+  try {
+
+    const res =
+      await fetch(
+        '/api/status',
+        { cache: 'no-store' }
+      );
+
+
+    const data =
+      await res.json();
+
+
+    updateFastModeBanner(data);
+
+
+    document.getElementById(
+      'progressText'
+    ).textContent =
+      `${data.current} / ${data.total}`;
+
+
+    document.getElementById(
+      'qualifiedCount'
+    ).textContent =
+      data.results_count || 0;
+
+
+    document.getElementById(
+      'errorCount'
+    ).textContent =
+      data.error_count || 0;
+
+
+    let statusText =
+      'Idle';
+
+
+    if (
+      data.paused &&
+      data.resume_at
+    ) {
+
+      const secsLeft =
+        Math.max(
+          0,
+          Math.round(
+            data.resume_at -
+            Date.now() / 1000
+          )
+        );
+
+
+      statusText =
+        `Paused — ${secsLeft}s`;
+
+    }
+
+    else if (
+      data.running
+    ) {
+
+      statusText =
+        data.no_proxy_mode
+          ? 'Scanning… (fast mode)'
+          : 'Scanning…';
+
+    }
+
+    else if (
+      data.total > 0
+    ) {
+
+      statusText =
+        'Completed';
+
+    }
+
+
+    document.getElementById(
+      'statusText'
+    ).textContent =
+      statusText;
+
+
+    document.getElementById(
+      'elapsedText'
+    ).textContent =
+      formatDuration(
+        data.elapsed_seconds
+      );
+
+
+    document.getElementById(
+      'etaText'
+    ).textContent =
+      data.running
+        ? formatDuration(data.eta_seconds)
+        : '—';
+
+
+    document.getElementById(
+      'speedText'
+    ).textContent =
+      data.rate_per_min
+        ? `${data.rate_per_min.toFixed(0)}/min`
+        : '—';
+
+
+    const pct =
+      data.total
+        ? Math.round(
+            (
+              data.current /
+              data.total
+            ) * 100
+          )
+        : 0;
+
+
+    document.getElementById(
+      'progressBar'
+    ).style.width =
+      pct + '%';
+
+
+    document.getElementById(
+      'progressPct'
+    ).textContent =
+      pct + '%';
+
+
+    document.getElementById(
+      'rangeLabel'
+    ).textContent =
+      data.start_mc
+        ? `MC-${data.start_mc} → MC-${data.end_mc}`
+        : '';
+
+
+    renderLog(
+      data.recent_log || []
+    );
+
+
+    document.getElementById(
+      'startBtn'
+    ).disabled =
+      data.running;
+
+
+    document.getElementById(
+      'stopBtn'
+    ).disabled =
+      !data.running;
+
+
+    document.getElementById(
+      'downloadBtn'
+    ).disabled =
+      !(data.results_count > 0);
+
+
+    if (
+      data.results_count > 0
+    ) {
+
+      const rres =
+        await fetch(
+          '/api/results',
+          { cache: 'no-store' }
+        );
+
+
+      latestResults =
+        await rres.json();
+
+    }
+
+
+    if (
+      data.running &&
+      !polling
+    ) {
+
+      polling =
+        setInterval(
+          poll,
+          1000
+        );
+
+    }
+
+
+    if (
+      !data.running &&
+      polling
+    ) {
+
+      clearInterval(
+        polling
+      );
+
+      polling = null;
+
+    }
+
+  }
+
+  catch (err) {
+
+    console.error(
+      'Dashboard error:',
+      err
+    );
+
+  }
+
+}
+
+
+/* =====================================================
+   START
+   ===================================================== */
+
+async function startRun() {
+
+  const startMc =
+    document.getElementById(
+      'startMc'
+    ).value;
+
+
+  const endMc =
+    document.getElementById(
+      'endMc'
+    ).value;
+
+
+  const errorEl =
+    document.getElementById(
+      'errorMsg'
+    );
+
+
+  errorEl.style.display =
+    'none';
+
+
+  if (
+    !startMc ||
+    !endMc
+  ) {
+
+    errorEl.textContent =
+      'Please enter both a start and end MC number.';
+
+    errorEl.style.display =
+      'block';
+
+    return;
+
+  }
+
+
+  const res =
+    await fetch(
+      '/api/start',
+      {
+
+        method: 'POST',
+
+        headers: {
+          'Content-Type':
+            'application/json'
+        },
+
+        body: JSON.stringify({
+          start_mc: startMc,
+          end_mc: endMc
+        })
+
+      }
+    );
+
+
+  const data =
+    await res.json();
+
+
+  if (
+    data.error
+  ) {
+
+    errorEl.textContent =
+      data.error;
+
+    errorEl.style.display =
+      'block';
+
+
+    // If it's stuck on a still-"running" previous job (e.g. deep in a
+    // long retry/backoff cycle), offer a one-click way to force it clear
+    // instead of leaving the user with no way to start a new scan.
+    if (
+      data.error.toLowerCase().includes('already running')
+    ) {
+
+      document.getElementById(
+        'forceResetRow'
+      ).style.display =
+        'block';
+
+    }
+
+    return;
+
+  }
+
+
+  document.getElementById(
+    'forceResetRow'
+  ).style.display =
+    'none';
+
+
+  document.getElementById(
+    'startBtn'
+  ).disabled =
+    true;
+
+
+  document.getElementById(
+    'stopBtn'
+  ).disabled =
+    false;
+
+
+  document.getElementById(
+    'downloadBtn'
+  ).disabled =
+    true;
+
+
+  // FIX: start the 1s polling loop immediately instead of waiting for the
+  // first poll() call to see running:true. Previously, if the background
+  // scan thread hadn't flipped jobs[job_id]["running"] to True yet by the
+  // time this first poll() resolved (a race condition), data.running came
+  // back false and setInterval() never got scheduled — so nothing polled
+  // again until the user navigated to another page and back (which re-ran
+  // this script from scratch). Starting the interval here guarantees a
+  // poll every second right away; the existing "!data.running && polling"
+  // check inside poll() still clears it cleanly once the scan finishes.
+  if (!polling) {
+
+    polling =
+      setInterval(
+        poll,
+        1000
+      );
+
+  }
+
+
+  poll();
+
+}
+
+
+/* FORCE RESET */
+
+async function forceReset() {
+
+  await fetch(
+    '/api/reset',
+    {
+      method: 'POST'
+    }
+  );
+
+
+  document.getElementById(
+    'forceResetRow'
+  ).style.display =
+    'none';
+
+
+  document.getElementById(
+    'errorMsg'
+  ).style.display =
+    'none';
+
+
+  showToast(
+    'Cleared — scan slot reset, try Start again'
+  );
+
+
+  poll();
+
+}
+
+
+/* STOP */
+
+async function stopRun() {
+
+  await fetch(
+    '/api/stop',
+    {
+      method: 'POST'
+    }
+  );
+
+
+  document.getElementById(
+    'stopBtn'
+  ).disabled =
+    true;
+
+
+  showToast(
+    'Scan stopped'
+  );
+
+}
+
+
+/* CSV */
+
+function downloadCsv() {
+
+  window.location.href =
+    '/api/download';
+
+}
+
+
+/* =====================================================
+   PICKUP
+   ===================================================== */
+
+function randomizeDashLine() {
+
+  dashLine =
+    getSmartPickupLine();
+
+
+  document.getElementById(
+    'dashPickupLine'
+  ).textContent =
+    dashLine;
+
+}
+
+
+function copyDashLine() {
+
+  navigator.clipboard
+    .writeText(
+      dashLine
+    )
+    .then(
+      () =>
+        showToast(
+          'Line copied to clipboard'
+        )
+    );
+
+}
+
+
+/* =====================================================
+   URL PARAMS
+   ===================================================== */
+
+const qp =
+  new URLSearchParams(
+    window.location.search
+  );
+
+
+if (
+  qp.get('start_mc')
+) {
+
+  document.getElementById(
+    'startMc'
+  ).value =
+    qp.get('start_mc');
+
+}
+
+
+if (
+  qp.get('end_mc')
+) {
+
+  document.getElementById(
+    'endMc'
+  ).value =
+    qp.get('end_mc');
+
+}
+
+
+   
+/* =====================================================
+   INIT
+   ===================================================== */
+
+randomizeDashLine();
+
+poll();
+
+</script>
+
+{% endblock %}

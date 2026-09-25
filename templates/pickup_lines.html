@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+{% block title %}Pickup Lines{% endblock %}
+
+{% block preload_images %}
+<link rel="preload" as="image" href="/static/pickup_light.webp">
+<link rel="preload" as="image" href="/static/pickup_dark.webp">
+{% endblock %}
+
+{% block extra_style %}
+<style>
+/* =========================================================
+   PICKUP LINES — MC SCOUT STYLE
+   ========================================================= */
+
+.pickup-page {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* ---------- HERO ---------- */
+
+.pickup-hero {
+  height: 235px;
+  position: relative;
+  padding: 27px 36px 0;
+  overflow: hidden;
+  border-radius: 15px;
+  margin-bottom: 22px;
+  border: 1px solid var(--border);
+
+  background-image:
+    linear-gradient(
+      rgba(0,0,0,.38),
+      rgba(0,0,0,.38)
+    ),
+    url("/static/pickup_light.webp");
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center 54%;
+}
+
+html[data-theme="dark"] .pickup-hero {
+  background-image:
+    linear-gradient(
+      rgba(0,0,0,.55),
+      rgba(0,0,0,.55)
+    ),
+    url("/static/pickup_dark.webp");
+  background-position: center 54%;
+}
+
+.pickup-hero-content {
+  position: relative;
+  z-index: 3;
+}
+
+.pickup-hero h1 {
+  margin: 0;
+  color: #fff;
+  font-size: 30px;
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -.7px;
+}
+
+.pickup-hero p {
+  margin: 10px 0 0;
+  color: rgba(255,255,255,.85);
+  font-size: 14px;
+}
+
+
+/* ---------- MAIN CARD ---------- */
+
+.pickup-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  box-shadow: 0 4px 16px rgba(20, 30, 50, 0.045);
+  overflow: hidden;
+  padding: 22px;
+}
+
+.pickup-card-title {
+  margin-bottom: 16px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+
+/* ---------- CATEGORY CHIPS ---------- */
+
+.cat-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+
+.cat-chip {
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel-2-solid);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--muted);
+  transition: .16s ease;
+}
+
+.cat-chip:hover {
+  border-color: var(--orange);
+  color: var(--text);
+}
+
+.cat-chip.active {
+  background: var(--orange);
+  color: #fff;
+  border-color: var(--orange);
+  box-shadow: 0 5px 12px rgba(255,101,0,.17);
+}
+
+
+/* ---------- LINE DISPLAY ---------- */
+
+.line-display {
+  background: var(--panel-2-solid);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 32px;
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--text);
+  text-align: center;
+  margin-bottom: 20px;
+  min-height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+/* ---------- ACTIONS (dashboard button style) ---------- */
+
+.line-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.d-btn {
+  height: 43px;
+  padding: 0 20px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: .16s ease;
+}
+
+.d-btn:hover {
+  background: var(--panel-2-solid);
+}
+
+.d-btn-primary {
+  border-color: var(--orange);
+  background: var(--orange);
+  color: #fff;
+  box-shadow: 0 5px 12px rgba(255,101,0,.17);
+}
+
+.d-btn-primary:hover {
+  background: var(--orange-dark);
+}
+
+
+/* ---------- RESPONSIVE ---------- */
+
+@media (max-width: 650px) {
+
+  .pickup-hero {
+    height: 200px;
+    padding: 25px 20px;
+  }
+
+  .pickup-hero h1 {
+    font-size: 23px;
+  }
+
+  .line-display {
+    padding: 22px;
+    font-size: 15px;
+  }
+
+  .line-actions {
+    flex-direction: column;
+  }
+
+  .d-btn {
+    width: 100%;
+  }
+}
+</style>
+{% endblock %}
+
+
+{% block content %}
+
+<div class="pickup-page">
+
+  <!-- ===================================================
+       HERO
+       =================================================== -->
+
+  <section class="pickup-hero">
+
+    <div class="pickup-hero-content">
+
+      <h1>
+        Smart Pickup Lines
+      </h1>
+
+      <p>
+        Natural call-opening lines, aware of day, time, and cargo type.
+      </p>
+
+    </div>
+
+  </section>
+
+
+  <!-- ===================================================
+       MAIN CARD
+       =================================================== -->
+
+  <div class="pickup-card">
+
+    <div class="pickup-card-title">
+      Category
+    </div>
+
+    <div class="cat-grid" id="catGrid"></div>
+
+    <div class="line-display" id="lineDisplay">
+      💬 Loading…
+    </div>
+
+    <div class="line-actions">
+
+      <button class="d-btn" onclick="copyLine()">
+        📄 &nbsp; Copy Line
+      </button>
+
+      <button class="d-btn d-btn-primary" onclick="newLine()">
+        ⟳ &nbsp; Get Another Line
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+{% endblock %}
+
+
+{% block extra_script %}
+<script src="/static/pickup_lines.js"></script>
+<script>
+
+const CATS = [
+  'friday', 'monday', 'morning', 'afternoon', 'evening',
+  'weekend', 'reefer', 'fresh', 'general', 'emergency',
+  'followup', 'first_contact'
+];
+
+const LABELS = {
+  friday: 'Friday',
+  monday: 'Monday',
+  morning: 'Morning',
+  afternoon: 'Afternoon',
+  evening: 'Evening',
+  weekend: 'Weekend',
+  reefer: 'Reefer',
+  fresh: 'Fresh',
+  general: 'General Freight',
+  emergency: 'Emergency Load',
+  followup: 'Follow-up',
+  first_contact: 'First Contact'
+};
+
+let activeCat = null;
+let currentLine = '';
+
+const grid = document.getElementById('catGrid');
+
+CATS.forEach(c => {
+
+  const chip = document.createElement('div');
+
+  chip.className = 'cat-chip';
+  chip.textContent = LABELS[c];
+  chip.dataset.cat = c;
+
+  chip.onclick = () => {
+    activeCat = c;
+    refreshChips();
+    newLine();
+  };
+
+  grid.appendChild(chip);
+});
+
+
+function refreshChips() {
+
+  document.querySelectorAll('.cat-chip').forEach(el =>
+    el.classList.toggle('active', el.dataset.cat === activeCat)
+  );
+}
+
+
+function newLine() {
+
+  currentLine = getSmartPickupLine(activeCat);
+
+  document.getElementById('lineDisplay').textContent =
+    '💬 ' + currentLine;
+}
+
+
+function copyLine() {
+
+  navigator.clipboard.writeText(currentLine).then(() =>
+    showToast('Line copied to clipboard')
+  );
+}
+
+
+newLine();
+
+</script>
+{% endblock %}

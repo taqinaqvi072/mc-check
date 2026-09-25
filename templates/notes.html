@@ -1,0 +1,674 @@
+{% extends "base.html" %}
+{% block title %}Create Notes{% endblock %}
+{% block preload_images %}
+<link rel="preload" as="image" href="/static/saved_light.webp">
+<link rel="preload" as="image" href="/static/saved_darkk.webp">
+{% endblock %}
+
+
+{% block extra_style %}
+<style>
+/* =========================================================
+   CREATE NOTES — MC SCOUT STYLE
+   ========================================================= */
+
+.notes-page {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* ---------- HERO ---------- */
+
+.notes-hero {
+  height: 235px;
+  position: relative;
+  padding: 27px 36px 0;
+  overflow: hidden;
+  border-radius: 15px;
+  margin-bottom: 22px;
+  border: 1px solid var(--border);
+
+  background-image:
+    linear-gradient(
+      rgba(0,0,0,.38),
+      rgba(0,0,0,.38)
+    ),
+    url("/static/saved_light.webp");
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center 54%;
+}
+
+html[data-theme="dark"] .notes-hero {
+  background-image:
+    linear-gradient(
+      rgba(0,0,0,.55),
+      rgba(0,0,0,.55)
+    ),
+    url("/static/saved_dark.webp");
+  background-position: center 54%;
+}
+
+.notes-hero-content {
+  position: relative;
+  z-index: 3;
+}
+
+.notes-hero h1 {
+  margin: 0;
+  color: #fff;
+  font-size: 30px;
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -.7px;
+}
+
+.notes-hero p {
+  margin: 10px 0 0;
+  color: rgba(255,255,255,.85);
+  font-size: 14px;
+}
+
+.muted-small {
+  font-size: 13px;
+  font-family: var(--mono);
+  color: var(--muted);
+  font-weight: 500;
+  margin-left: 5px;
+}
+
+
+/* ---------- LAYOUT ---------- */
+
+.notes-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .notes-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* ---------- CARD ---------- */
+
+.notes-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  box-shadow: 0 4px 16px rgba(20, 30, 50, 0.045);
+  overflow: hidden;
+  padding: 20px;
+}
+
+.notes-card-title {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+
+/* ---------- FORM ---------- */
+
+.note-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.note-form label {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-weight: 700;
+}
+
+.note-form input,
+.note-form select,
+.note-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  height: 40px;
+  padding: 0 13px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--panel);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12.5px;
+  outline: none;
+  transition: .18s ease;
+}
+
+.note-form input:focus,
+.note-form select:focus,
+.note-form textarea:focus {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(45, 105, 230, .08);
+}
+
+.note-form input::placeholder,
+.note-form textarea::placeholder {
+  color: var(--muted);
+}
+
+.note-form textarea {
+  height: auto;
+  min-height: 90px;
+  padding: 10px 13px;
+  resize: vertical;
+  font-family: var(--body);
+  line-height: 1.5;
+}
+
+.row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+
+/* ---------- BUTTON (dashboard style) ---------- */
+
+.d-btn {
+  height: 43px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: .16s ease;
+}
+
+.d-btn:hover {
+  background: var(--panel-2-solid);
+}
+
+.d-btn-primary {
+  width: 100%;
+  border-color: var(--orange);
+  background: var(--orange);
+  color: #fff;
+  box-shadow: 0 5px 12px rgba(255,101,0,.17);
+}
+
+.d-btn-primary:hover {
+  background: var(--orange-dark);
+}
+
+
+/* ---------- NOTES LIST ---------- */
+
+.notes-count {
+  color: var(--general);
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 6px;
+}
+
+.notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.note-card {
+  background: var(--panel-2-solid);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.note-card .top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.note-card .mc {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--accent-blue);
+  font-weight: 700;
+}
+
+.note-card .title {
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.note-card .body {
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.note-card .meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+
+/* ---------- BADGES ---------- */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 23px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge.fresh {
+  color: #087f55;
+  background: rgba(12, 174, 107, .10);
+  border: 1px solid rgba(12, 174, 107, .18);
+}
+
+.badge.reefer {
+  color: #1769d1;
+  background: rgba(35, 110, 225, .10);
+  border: 1px solid rgba(35, 110, 225, .18);
+}
+
+.badge.general {
+  color: #d85a00;
+  background: rgba(255, 103, 0, .10);
+  border: 1px solid rgba(255, 103, 0, .18);
+}
+
+.badge.error {
+  color: #b91c1c;
+  background: rgba(220, 38, 38, .10);
+  border: 1px solid rgba(220, 38, 38, .18);
+}
+
+.badge.neutral {
+  color: var(--muted);
+  background: var(--panel-2-solid);
+  border: 1px solid var(--border);
+}
+
+
+/* ---------- ACTIONS ---------- */
+
+.action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 10.5px;
+  font-weight: 600;
+  transition: .16s ease;
+}
+
+.action-icon.danger:hover {
+  border-color: #dc2626;
+  color: #dc2626;
+  background: var(--panel-2-solid);
+}
+
+
+/* ---------- EMPTY STATE ---------- */
+
+.empty-state {
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 35px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.empty-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  border: 2px solid var(--orange);
+  border-radius: 12px;
+  color: var(--orange);
+  font-size: 21px;
+}
+
+.empty-title {
+  color: var(--text);
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+
+/* ---------- RESPONSIVE ---------- */
+
+@media (max-width: 800px) {
+
+  .notes-hero {
+    height: 200px;
+    padding: 25px 20px;
+  }
+
+  .notes-hero h1 {
+    font-size: 23px;
+  }
+
+  .row-2 {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+{% endblock %}
+
+
+{% block content %}
+
+<div class="notes-page">
+
+  <!-- ===================================================
+       HERO
+       =================================================== -->
+
+  <section class="notes-hero">
+
+    <div class="notes-hero-content">
+
+      <h1>
+        Create Notes
+      </h1>
+
+      <p>
+        Log calls and follow-ups per carrier.
+      </p>
+
+    </div>
+
+  </section>
+
+
+  <!-- ===================================================
+       BODY
+       =================================================== -->
+
+  <div class="notes-grid">
+
+
+    <!-- NEW NOTE FORM -->
+
+    <div class="notes-card">
+
+      <div class="notes-card-title">
+        New Note
+      </div>
+
+      <div class="note-form">
+
+        <div>
+          <label>MC Number</label>
+          <input type="text" id="noteMc" placeholder="1788002">
+        </div>
+
+        <div>
+          <label>Note Title</label>
+          <input type="text" id="noteTitle" placeholder="Called carrier">
+        </div>
+
+        <div>
+          <label>Note Body</label>
+          <textarea
+            id="noteBody"
+            placeholder="Called carrier. Interested in reefer loads. Follow up Monday."
+          ></textarea>
+        </div>
+
+        <div class="row-2">
+
+          <div>
+            <label>Tags</label>
+            <input type="text" id="noteTags" placeholder="reefer, follow-up">
+          </div>
+
+          <div>
+            <label>Priority</label>
+            <select id="notePriority">
+              <option>Low</option>
+              <option selected>Normal</option>
+              <option>High</option>
+              <option>Urgent</option>
+            </select>
+          </div>
+
+        </div>
+
+        <div>
+          <label>Reminder Date</label>
+          <input type="date" id="noteReminder">
+        </div>
+
+        <button class="d-btn d-btn-primary" onclick="saveNote()">
+          Save Note
+        </button>
+
+      </div>
+
+    </div>
+
+
+    <!-- ALL NOTES -->
+
+    <div class="notes-card">
+
+      <div class="notes-card-title">
+        All Notes
+        <span class="notes-count" id="notesCount"></span>
+      </div>
+
+      <div id="notesWrap">
+
+        <div class="empty-state">
+
+          <div class="empty-icon">📝</div>
+
+          <div class="empty-title">
+            No notes yet
+          </div>
+
+          <div>
+            Save a note on the left to see it here.
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+{% endblock %}
+
+
+{% block extra_script %}
+<script>
+
+const params = new URLSearchParams(window.location.search);
+
+if (params.get('mc')) {
+  document.getElementById('noteMc').value = params.get('mc');
+}
+
+
+/* =========================================================
+   SAVE NOTE
+   ========================================================= */
+
+async function saveNote() {
+
+  const mc = document.getElementById('noteMc').value.trim();
+  const title = document.getElementById('noteTitle').value.trim();
+  const body = document.getElementById('noteBody').value.trim();
+
+  if (!mc || !title) {
+    showToast('MC number and title are required');
+    return;
+  }
+
+  await fetch('/api/notes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      mc_number: mc,
+      title,
+      body,
+      tags: document.getElementById('noteTags').value.trim(),
+      priority: document.getElementById('notePriority').value,
+      reminder_date: document.getElementById('noteReminder').value,
+    })
+  });
+
+  document.getElementById('noteTitle').value = '';
+  document.getElementById('noteBody').value = '';
+  document.getElementById('noteTags').value = '';
+
+  showToast('Note saved');
+
+  loadNotes();
+}
+
+
+/* =========================================================
+   PRIORITY BADGE
+   ========================================================= */
+
+function priorityBadge(p) {
+
+  const map = {
+    Low: 'neutral',
+    Normal: 'reefer',
+    High: 'general',
+    Urgent: 'error'
+  };
+
+  return `<span class="badge ${map[p] || 'neutral'}">${p}</span>`;
+}
+
+
+/* =========================================================
+   LOAD NOTES
+   ========================================================= */
+
+async function loadNotes() {
+
+  const res = await fetch('/api/notes');
+  const notes = await res.json();
+
+  document.getElementById('notesCount').textContent =
+    `(${notes.length})`;
+
+  const wrap = document.getElementById('notesWrap');
+
+  if (!notes.length) {
+
+    wrap.innerHTML = `
+      <div class="empty-state">
+
+        <div class="empty-icon">📝</div>
+
+        <div class="empty-title">
+          No notes yet
+        </div>
+
+        <div>
+          Save a note on the left to see it here.
+        </div>
+
+      </div>
+    `;
+
+    return;
+  }
+
+  wrap.innerHTML = notes.map(n => `
+    <div class="note-card">
+
+      <div class="top">
+        <span class="mc">MC-${n.mc_number}</span>
+        <span
+          class="action-icon danger"
+          onclick="deleteNote('${n.id}')"
+        >
+          Delete
+        </span>
+      </div>
+
+      <div class="title">${n.title}</div>
+
+      <div class="body">${n.body || ''}</div>
+
+      <div class="meta">
+        ${priorityBadge(n.priority)}
+        ${n.tags ? `<span>${n.tags}</span>` : ''}
+        ${n.reminder_date ? `<span>⏰ ${n.reminder_date}</span>` : ''}
+        <span style="margin-left:auto;">${n.created}</span>
+      </div>
+
+    </div>
+  `).join('');
+}
+
+
+/* =========================================================
+   DELETE NOTE
+   ========================================================= */
+
+async function deleteNote(id) {
+
+  await fetch(`/api/notes/${id}`, { method: 'DELETE' });
+
+  loadNotes();
+}
+
+
+/* =========================================================
+   START
+   ========================================================= */
+
+loadNotes();
+
+</script>
+{% endblock %}

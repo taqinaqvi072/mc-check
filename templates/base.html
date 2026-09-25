@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>K&A — {% block title %}Dashboard{% endblock %}</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  >
+
+  <style>
+
+    /* =====================================================
+       K&A — REFERENCE BASE
+       ===================================================== */
+
+    :root {
+      --sidebar-w: 258px;
+
+      --orange: #ff6500;
+      --orange-dark: #eb5700;
+
+      --bg: #f5f6fa;
+      --panel: #ffffff;
+      --panel-2: #f8f9fb;
+      --border: #e1e5ec;
+
+      --text: #172235;
+      --muted: #687385;
+
+      --fresh: #09a96c;
+      --reefer: #1769e0;
+      --general: #ff6500;
+      --error: #dc2626;
+
+      --shadow:
+        0 8px 25px rgba(30, 42, 65, .06);
+    }
+
+    html[data-theme="dark"] {
+      --bg: #0b1018;
+      --panel: #151c27;
+      --panel-2: #101720;
+      --border: #293342;
+
+      --text: #edf2f7;
+      --muted: #929eae;
+
+      --shadow:
+        0 12px 35px rgba(0,0,0,.25);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+    }
+
+    body {
+      font-family: Inter, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font-family: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    /* =====================================================
+       APP
+       ===================================================== */
+
+    .app-shell {
+      min-height: 100vh;
+      display: flex;
+      background: var(--bg);
+    }
+
+
+    /* =====================================================
+       SIDEBAR
+       ===================================================== */
+
+    .sidebar {
+      width: var(--sidebar-w);
+      flex-shrink: 0;
+
+      position: fixed;
+      left: 0;
+      top: 0;
+      bottom: 0;
+
+      z-index: 30;
+
+      display: flex;
+      flex-direction: column;
+
+      padding: 25px 17px 18px;
+
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+
+      overflow-y: auto;
+
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .sidebar::-webkit-scrollbar {
+      display: none;
+      width: 0;
+      height: 0;
+    }
+
+
+    .sb-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+
+      padding: 5px 10px 28px;
+    }
+
+    .sb-logo {
+      width: 48px;
+      height: 48px;
+
+      flex-shrink: 0;
+
+      border-radius: 10px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      background: #ffffff;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      padding: 4px;
+
+      box-shadow:
+        0 5px 12px rgba(23,34,53,.08);
+    }
+
+    .sb-logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .sb-brand-text .name {
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: -.4px;
+    }
+
+    .sb-brand-text .tag {
+      margin-top: 2px;
+
+      font-size: 9px;
+      font-weight: 500;
+
+      color: var(--muted);
+      letter-spacing: .02em;
+    }
+
+
+    .sb-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+
+      flex: 1;
+    }
+
+    .sb-link {
+      position: relative;
+
+      display: flex;
+      align-items: center;
+      gap: 14px;
+
+      min-height: 44px;
+
+      padding: 0 14px;
+
+      border-radius: 10px;
+
+      color: #526078;
+
+      text-decoration: none;
+
+      font-size: 13px;
+      font-weight: 550;
+
+      transition:
+        background .15s ease,
+        color .15s ease;
+    }
+
+    .sb-link svg {
+      width: 18px;
+      height: 18px;
+
+      flex-shrink: 0;
+
+      opacity: .9;
+    }
+
+    .sb-link:hover {
+      background: #faf5f1;
+      color: var(--orange);
+    }
+
+    .sb-link.active {
+      color: var(--orange);
+
+      background:
+        linear-gradient(
+          90deg,
+          rgba(255,101,0,.10),
+          rgba(255,101,0,.025)
+        );
+    }
+
+    .sb-link.active::before {
+      content: "";
+
+      position: absolute;
+      left: -17px;
+      top: 0;
+      bottom: 0;
+
+      width: 3px;
+
+      background: var(--orange);
+
+      border-radius: 0 3px 3px 0;
+    }
+
+    .sb-link.active svg {
+      color: var(--orange);
+    }
+
+
+    .sb-pro-card {
+      margin-top: 16px;
+
+      padding: 15px;
+
+      border: 1px solid #e7e1dc;
+      border-radius: 12px;
+
+      background: #fffaf7;
+    }
+
+    .sb-pro-card .t {
+      color: var(--orange);
+
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .sb-pro-card .d {
+      margin-top: 5px;
+      margin-bottom: 12px;
+
+      color: #657084;
+
+      font-size: 10.5px;
+      line-height: 1.55;
+    }
+
+    .sb-pro-card button {
+      width: 100%;
+      height: 36px;
+
+      border: 0;
+      border-radius: 8px;
+
+      color: white;
+      background: var(--orange);
+
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .sb-pro-card button:hover {
+      background: var(--orange-dark);
+    }
+
+
+    .main-area {
+      width: calc(100% - var(--sidebar-w));
+
+      margin-left: var(--sidebar-w);
+
+      min-width: 0;
+
+      display: flex;
+      flex-direction: column;
+    }
+
+
+    .topbar {
+      height: 82px;
+
+      position: relative;
+      z-index: 20;
+
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+
+      gap: 12px;
+
+      padding: 0 28px;
+
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tb-vpn {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+
+      margin-right: 2px;
+
+      color: #566276;
+
+      font-size: 12px;
+    }
+
+    .tb-vpn .dot {
+      width: 7px;
+      height: 7px;
+
+      border-radius: 50%;
+
+      background: var(--fresh);
+    }
+
+
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      position: relative;
+
+      border: 1px solid var(--border);
+      border-radius: 10px;
+
+      background: var(--panel);
+
+      color: #667085;
+    }
+
+    .icon-btn:hover {
+      border-color: #ffc19e;
+      color: var(--orange);
+    }
+
+    .icon-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .notif-dot {
+      position: absolute;
+
+      right: 8px;
+      top: 7px;
+
+      min-width: 14px;
+      height: 14px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      padding: 0 3px;
+
+      border-radius: 999px;
+
+      color: white;
+      background: var(--orange);
+
+      font-size: 8px;
+      font-weight: 800;
+    }
+
+
+    .tb-user {
+      position: relative;
+
+      display: flex;
+      align-items: center;
+      gap: 10px;
+
+      padding-left: 7px;
+
+      cursor: pointer;
+    }
+
+    .tb-avatar {
+      width: 40px;
+      height: 40px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      border-radius: 50%;
+
+      background: var(--orange);
+
+      color: white;
+
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .tb-user-info .n {
+      color: var(--text);
+
+      font-size: 12.5px;
+      font-weight: 750;
+    }
+
+    .tb-user-info .p {
+      margin-top: 2px;
+
+      color: var(--orange);
+
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .tb-dropdown {
+      position: absolute;
+
+      right: 0;
+      top: 49px;
+
+      display: none;
+
+      min-width: 175px;
+
+      padding: 6px;
+
+      border: 1px solid var(--border);
+      border-radius: 10px;
+
+      background: var(--panel);
+
+      box-shadow: var(--shadow);
+
+      z-index: 100;
+    }
+
+    .tb-dropdown.open {
+      display: block;
+    }
+
+    .tb-dropdown a {
+      display: block;
+
+      padding: 9px 11px;
+
+      border-radius: 7px;
+
+      color: var(--text);
+
+      text-decoration: none;
+
+      font-size: 12px;
+    }
+
+    .tb-dropdown a:hover {
+      background: var(--panel-2);
+    }
+
+
+    .content {
+      flex: 1;
+
+      padding: 0;
+
+      min-width: 0;
+    }
+
+
+    .site-footer {
+      min-height: 78px;
+
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+
+      align-items: center;
+
+      gap: 20px;
+
+      padding: 13px 28px;
+
+      background: var(--panel);
+
+      border-top: 1px solid var(--border);
+    }
+
+    .footer-trust {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .footer-shield {
+      width: 30px;
+      height: 30px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      color: var(--orange);
+    }
+
+    .footer-shield svg {
+      width: 28px;
+      height: 28px;
+    }
+
+    .footer-trust-title {
+      font-size: 11.5px;
+      font-weight: 700;
+    }
+
+    .footer-trust-title span {
+      color: var(--orange);
+    }
+
+    .footer-trust-sub {
+      margin-top: 4px;
+
+      color: var(--muted);
+
+      font-size: 10px;
+    }
+
+    .footer-copy {
+      color: var(--muted);
+
+      font-size: 11px;
+
+      white-space: nowrap;
+      text-align: center;
+    }
+
+    .footer-copy strong {
+      color: var(--orange);
+      font-weight: 700;
+    }
+
+    .footer-social {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+
+      gap: 24px;
+    }
+
+    .footer-social a {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+
+      color: #465268;
+
+      text-decoration: none;
+
+      font-size: 11px;
+      font-weight: 550;
+    }
+
+    .footer-social a:hover {
+      color: var(--orange);
+    }
+
+    .footer-social svg {
+      width: 17px;
+      height: 17px;
+    }
+
+
+    /* ---------- MOBILE MENU BUTTON ---------- */
+
+    .menu-toggle {
+      display: none;
+      width: 40px;
+      height: 40px;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--panel);
+      color: #667085;
+      margin-right: auto;
+    }
+
+    .menu-toggle svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* ---------- OVERLAY ---------- */
+
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 25;
+    }
+
+    .sidebar-overlay.open {
+      display: block;
+    }
+
+
+    @media (max-width: 1000px) {
+
+      :root {
+        --sidebar-w: 225px;
+      }
+
+      .topbar {
+        padding: 0 18px;
+      }
+
+      .footer-social {
+        gap: 12px;
+      }
+
+    }
+
+
+    @media (max-width: 800px) {
+
+      .sidebar {
+        transform: translateX(-100%);
+        transition: transform .25s ease;
+      }
+
+      .sidebar.open {
+        transform: translateX(0);
+        box-shadow: 0 0 30px rgba(0,0,0,.25);
+      }
+
+      .main-area {
+        width: 100%;
+        margin-left: 0;
+      }
+
+      .site-footer {
+        grid-template-columns: 1fr;
+        justify-items: center;
+        text-align: center;
+      }
+
+      .footer-social {
+        justify-content: center;
+      }
+
+      .footer-trust {
+        justify-content: center;
+      }
+
+      .menu-toggle {
+        display: flex;
+      }
+
+    }
+
+  </style>
+
+  {% block extra_style %}{% endblock %}
+  {% block preload_images %}{% endblock %}
+
+</head>
+
+
+<body>
+
+<div class="app-shell">
+
+
+  <!-- ===================================================
+       SIDEBAR
+       =================================================== -->
+
+  <aside class="sidebar" id="sidebar">
+
+    <div class="sb-brand">
+
+      <div class="sb-logo">
+
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="K&A Logo">
+
+      </div>
+
+
+      <div class="sb-brand-text">
+
+        <div class="name">
+          K&A
+        </div>
+
+        <div class="tag">
+          CARRIER INTELLIGENCE CONSOLE
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <nav class="sb-nav">
+
+      {% set nav_items = [
+
+        ('dashboard', 'Dashboard',
+        'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6'),
+
+        ('qualified_page', 'Qualified Carriers',
+        'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'),
+
+    ('motus_search_page', 'Motus Search',
+    'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'),
+
+    ('motus_qualified_page', 'Motus Qualified',
+    'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'),
+      
+
+        ('saved_page', 'Saved MCs',
+        'M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z'),
+
+        ('notes_page', 'Create Notes',
+        'M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5m-1.4-9.4a2 2 0 112.8 2.8L11 15l-4 1 1-4 9.6-9.4z'),
+
+        ('pickup_lines_page', 'Pickup Lines',
+        'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.4-4 8-9 8a9.7 9.7 0 01-4-.8L3 20l1.3-3.9A7.9 7.9 0 013 12c0-4.4 4-8 9-8s9 3.6 9 8z'),
+
+        ('history_page', 'Scan History',
+        'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'),
+
+        ('errors_page', 'Error MCs',
+        'M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z'),
+
+        ('reports_page', 'Reports',
+        'M3 3v18h18M7 15l4-5 3 3 5-7'),
+
+        ('settings_page', 'Settings',
+        'M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.6V21a2 2 0 11-4 0v-.2a1.7 1.7 0 00-1-1.5 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.6-1H3a2 2 0 110-4h.2a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.6V3a2 2 0 114 0v.2a1.7 1.7 0 001 1.6 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9a1.7 1.7 0 001.6 1H21a2 2 0 110 4h-.2a1.7 1.7 0 00-1.6 1z'),
+
+        ('about_page', 'About Us',
+        'M12 22a10 10 0 100-20 10 10 0 000 20zM12 16v-4M12 8h.01')
+
+      ] %}
+
+
+      {% for endpoint, label, path in nav_items %}
+
+      <a
+        href="{{ url_for(endpoint) }}"
+        class="sb-link {% if request.endpoint == endpoint %}active{% endif %}"
+      >
+
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="{{ path }}"/>
+        </svg>
+
+        <span>
+          {{ label }}
+        </span>
+
+      </a>
+
+      {% endfor %}
+
+    </nav>
+
+
+    <!-- PRO -->
+
+    <!-- <div class="sb-pro-card">
+
+      <div class="t">
+        Upgrade to Pro
+      </div>
+
+      <div class="d">
+        Unlock advanced filters, unlimited scans, bulk export and more.
+      </div>
+
+      <button
+        onclick="window.location.href='{{ url_for('settings_page') }}'"
+      >
+        Upgrade Now
+      </button>
+
+    </div> -->
+
+  </aside>
+
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+
+
+  <!-- ===================================================
+       MAIN
+       =================================================== -->
+
+  <div class="main-area">
+
+
+    <!-- TOP BAR -->
+
+    <header class="topbar">
+
+      <button class="menu-toggle" id="menuToggle" title="Menu">
+
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M3 6h18M3 12h18M3 18h18"/>
+        </svg>
+
+      </button>
+
+      <div class="tb-vpn">
+
+        <span class="dot"></span>
+
+        DISPATCH SYSTEM ONLINE
+
+      </div>
+
+
+      <!-- THEME -->
+
+      <button
+        class="icon-btn"
+        id="themeToggle"
+        title="Toggle theme"
+      >
+
+        <svg
+          id="themeIcon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+        >
+          <circle cx="12" cy="12" r="4.5"/>
+          <path d="M12 2v2.2M12 19.8V22M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2 12h2.2M19.8 12H22M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6"/>
+        </svg>
+
+      </button>
+
+
+      <!-- NOTIFICATION -->
+
+      <button
+        class="icon-btn"
+        title="Notifications"
+      >
+
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.7 21a2 2 0 01-3.4 0"/>
+        </svg>
+
+        <span class="notif-dot">
+          2
+        </span>
+
+      </button>
+
+
+      <!-- USER -->
+
+      <div
+        class="tb-user"
+        id="userMenuBtn"
+      >
+
+        <div class="tb-avatar">
+          {{ (username or "K")[0]|upper }}
+        </div>
+
+        <div class="tb-user-info">
+
+          <div class="n" id="topbarUsername">
+            {{ username or "kandaadmin" }}
+          </div>
+
+          <div class="p">
+            {{ "Lifetime" if plan == "lifetime" else ("1 Year" if plan == "1_year" else ("1 Month" if plan == "1_month" else "Demo")) }}
+          </div>
+
+        </div>
+
+
+        <div
+          class="tb-dropdown"
+          id="userDropdown"
+        >
+
+          <a href="{{ url_for('settings_page') }}">
+            Profile
+          </a>
+
+          <a href="{{ url_for('settings_page') }}">
+            Account Settings
+          </a>
+
+          <a href="{{ url_for('settings_page') }}">
+            Subscription
+          </a>
+
+          <a href="{{ url_for('logout') }}">
+            Logout
+          </a>
+
+        </div>
+
+      </div>
+
+    </header>
+
+
+    <!-- CONTENT -->
+
+    <main class="content">
+
+      {% block content %}
+      {% endblock %}
+
+    </main>
+
+
+    <!-- FOOTER -->
+
+    <footer class="site-footer">
+
+
+      <!-- TRUST -->
+
+      <div class="footer-trust">
+
+        <div class="footer-shield">
+
+          <svg
+            viewBox="0 0 32 32"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+          >
+
+            <path
+              d="M16 3
+                 L27 7
+                 V15
+                 C27 22
+                 22.5 27
+                 16 29
+                 C9.5 27
+                 5 22
+                 5 15
+                 V7
+                 Z"
+            />
+
+            <path
+              d="M11 16l3 3 7-8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+
+          </svg>
+
+        </div>
+
+
+        <div>
+
+          <div class="footer-trust-title">
+            Trusted by <span>Dispatchers</span> Nationwide
+          </div>
+
+          <div class="footer-trust-sub">
+            Fast. Reliable. Secure.
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <!-- COPYRIGHT -->
+
+      <div class="footer-copy">
+
+        © 2026 All Rights Reserved by
+        <strong>K&A Enterprises</strong>
+
+      </div>
+
+
+      <!-- SOCIAL -->
+
+      <div class="footer-social">
+
+        <a
+          href="https://facebook.com"
+          target="_blank"
+        >
+
+          <svg
+            viewBox="0 0 24 24"
+            fill="currentColor"
+          >
+            <path d="M14 8h3V4h-3c-3 0-5 2-5 5v3H6v4h3v8h4v-8h3.5l.5-4H13V9c0-.7.3-1 1-1z"/>
+          </svg>
+
+          Facebook
+
+        </a>
+
+
+        <a
+          href="https://instagram.com"
+          target="_blank"
+        >
+
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+          >
+
+            <rect
+              x="3"
+              y="3"
+              width="18"
+              height="18"
+              rx="5"
+            />
+
+            <circle cx="12" cy="12" r="4"/>
+
+            <circle
+              cx="17.5"
+              cy="6.5"
+              r="1"
+              fill="currentColor"
+              stroke="none"
+            />
+
+          </svg>
+
+          Instagram
+
+        </a>
+
+
+        <a href="mailto:taqinaqvi439@gmail.com">
+
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <rect x="3" y="5" width="18" height="14" rx="2"/>
+            <path d="M3 7l9 6 9-6"/>
+          </svg>
+
+          Gmail
+
+        </a>
+
+      </div>
+
+    </footer>
+
+  </div>
+
+</div>
+
+
+<!-- =====================================================
+     TOAST
+     ===================================================== -->
+
+<div
+  id="toastWrap"
+  style="
+    position:fixed;
+    right:22px;
+    bottom:22px;
+    z-index:999;
+  "
+></div>
+
+
+<script>
+
+/* =====================================================
+   THEME
+   ===================================================== */
+
+function applyTheme(theme) {
+
+  document.documentElement.setAttribute(
+    'data-theme',
+    theme
+  );
+
+  localStorage.setItem(
+    'mcs-theme',
+    theme
+  );
+
+
+  const icon =
+    document.getElementById('themeIcon');
+
+
+  if (!icon) return;
+
+
+  if (theme === 'dark') {
+
+    icon.innerHTML = `
+      <path
+        d="M20 14.5
+           A8.5 8.5 0 1 1
+           9.5 4
+           A6.5 6.5 0 0 0
+           20 14.5Z"
+      />
+    `;
+
+  } else {
+
+    icon.innerHTML = `
+      <circle
+        cx="12"
+        cy="12"
+        r="4.5"
+      />
+
+      <path
+        d="
+          M12 2v2.2
+          M12 19.8V22
+          M4.2 4.2l1.6 1.6
+          M18.2 18.2l1.6 1.6
+          M2 12h2.2
+          M19.8 12H22
+          M4.2 19.8l1.6-1.6
+          M18.2 5.8l1.6-1.6
+        "
+      />
+    `;
+
+  }
+
+}
+
+
+const savedTheme =
+  localStorage.getItem('mcs-theme') || 'light';
+
+
+applyTheme(savedTheme);
+
+
+document
+  .getElementById('themeToggle')
+  ?.addEventListener(
+    'click',
+    () => {
+
+      const current =
+        document.documentElement
+          .getAttribute('data-theme');
+
+      applyTheme(
+        current === 'dark'
+          ? 'light'
+          : 'dark'
+      );
+
+    }
+  );
+
+
+/* =====================================================
+   MOBILE SIDEBAR
+   ===================================================== */
+
+const sidebarEl = document.getElementById('sidebar');
+const overlayEl = document.getElementById('sidebarOverlay');
+const menuToggleEl = document.getElementById('menuToggle');
+
+function openSidebar() {
+  sidebarEl?.classList.add('open');
+  overlayEl?.classList.add('open');
+}
+
+function closeSidebar() {
+  sidebarEl?.classList.remove('open');
+  overlayEl?.classList.remove('open');
+}
+
+menuToggleEl?.addEventListener('click', () => {
+  sidebarEl?.classList.contains('open') ? closeSidebar() : openSidebar();
+});
+
+overlayEl?.addEventListener('click', closeSidebar);
+
+// close sidebar automatically when a nav link is tapped (mobile)
+document.querySelectorAll('.sb-link').forEach(link => {
+  link.addEventListener('click', closeSidebar);
+});
+
+
+/* =====================================================
+   USER DROPDOWN
+   ===================================================== */
+
+document
+  .getElementById('userMenuBtn')
+  ?.addEventListener(
+    'click',
+    function(e) {
+
+      e.stopPropagation();
+
+      document
+        .getElementById('userDropdown')
+        .classList
+        .toggle('open');
+
+    }
+  );
+
+
+document.addEventListener(
+  'click',
+  function() {
+
+    document
+      .getElementById('userDropdown')
+      ?.classList
+      .remove('open');
+
+  }
+);
+
+
+/* =====================================================
+   TOAST
+   ===================================================== */
+
+function showToast(message) {
+
+  const wrap =
+    document.getElementById('toastWrap');
+
+
+  const toast =
+    document.createElement('div');
+
+
+  toast.textContent =
+    message;
+
+
+  toast.style.cssText = `
+    background:var(--panel);
+    color:var(--text);
+    border:1px solid var(--border);
+    border-left:3px solid var(--orange);
+    border-radius:9px;
+    padding:11px 16px;
+    margin-top:8px;
+    box-shadow:var(--shadow);
+    font-size:12px;
+  `;
+
+
+  wrap.appendChild(toast);
+
+
+  setTimeout(
+    () => toast.remove(),
+    3200
+  );
+
+}
+
+</script>
+
+
+{% block extra_script %}
+{% endblock %}
+
+</body>
+</html>
