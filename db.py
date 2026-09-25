@@ -198,8 +198,7 @@ def _seed_default_users():
             return
         defaults = [
             ("Demo", "demo@gmail.com", generate_password_hash("demo@123"), "demo", False),
-           ("Demo", "demo2@gmail.com", generate_password_hash("demo@1234"), "demo", False),
-
+            ("Demo2", "demo2@gmail.com", generate_password_hash("demo@1234"), "demo", False),
             ("Scott", "ka@gmail.com", generate_password_hash("sublime@2026"), "lifetime", True),
         ]
         for username, email, pw_hash, plan, is_admin in defaults:
@@ -208,7 +207,6 @@ def _seed_default_users():
                 (username, email, pw_hash, plan, time.time(), is_admin),
             )
     conn.commit()
-
 
 # ---------------------------------------------------------------------------
 # Users
