@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+
+{% block title %}Motus Register Qualified{% endblock %}
+
+{% block extra_style %}
+<style>
+.dashboard-body { padding: 24px 28px; }
+.d-card {
+  background: rgba(255,255,255,.97); border: 1px solid #e0e5ec;
+  border-radius: 15px; box-shadow: 0 7px 22px rgba(35,48,70,.055); padding: 17px;
+}
+html[data-theme="dark"] .d-card {
+  background: rgba(20,27,37,.97); border-color: #293442; box-shadow: 0 10px 30px rgba(0,0,0,.22);
+}
+.card-title-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.card-title { color: #172235; font-size: 15px; font-weight: 750; }
+html[data-theme="dark"] .card-title { color: #f1f4f8; }
+.d-btn {
+  height: 40px; padding: 0 16px; border: 1px solid #dce2e9; border-radius: 9px;
+  background: #fff; color: #253044; font-size: 12px; font-weight: 700;
+}
+html[data-theme="dark"] .d-btn { background: #18212d; color: #edf2f7; border-color: #303b49; }
+.d-btn-primary { border-color: var(--orange); background: var(--orange); color: #fff; }
+.d-btn-primary:hover { background: var(--orange-dark); }
+.log-scroll { overflow: auto; }
+.log-scroll table { width: 100%; border-collapse: collapse; }
+.log-scroll th {
+  padding: 8px; color: #7a8494; border-bottom: 1px solid #e4e8ed;
+  font-size: 9px; text-align: left; text-transform: uppercase; white-space: nowrap;
+}
+.log-scroll td { padding: 9px 8px; color: #3d495c; border-bottom: 1px solid #edf0f3; font-size: 11.5px; }
+html[data-theme="dark"] .log-scroll th, html[data-theme="dark"] .log-scroll td { border-color: #2b3542; }
+html[data-theme="dark"] .log-scroll td { color: #c7d0db; }
+.empty-state { padding: 40px 20px; text-align: center; color: #8993a1; font-size: 12.5px; }
+.save-btn { height: 30px; padding: 0 10px; font-size: 10.5px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+  <div class="dashboard-body">
+
+    <div class="d-card">
+      <div class="card-title-row">
+        <div class="card-title">Register Qualified Carriers</div>
+        <div style="display:flex; gap:10px;">
+          <a href="{{ url_for('motus_register_search_page') }}" class="d-btn" style="text-decoration:none; display:inline-flex; align-items:center;">
+            ← Back to Register Search
+          </a>
+          <button class="d-btn d-btn-primary" onclick="downloadRegCsv()">
+            ↓ Download CSV
+          </button>
+        </div>
+      </div>
+
+      <div class="log-scroll" id="regQualifiedWrap">
+        <div class="empty-state">Loading…</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_script %}
+<script>
+async function loadRegQualified() {
+  const wrap = document.getElementById('regQualifiedWrap');
+  try {
+    const res = await fetch('/api/motus-register/results', { cache: 'no-store' });
+    const data = await res.json();
+    const rows = data.qualified || [];
+
+    if (!rows.length) {
+      wrap.innerHTML = '<div class="empty-state">No qualified carriers yet — run a Register search first.</div>';
+      return;
+    }
+
+    let html = `<table><thead><tr>
+      <th>USDOT</th><th>Legal Name</th><th>Phone</th><th>City/State</th>
+      <th>Power Units</th><th>Cargo</th><th>Authority</th><th>Save</th>
+    </tr></thead><tbody>`;
+
+    for (const e of rows) {
+      html += `<tr>
+        <td>${e.mc_number}</td>
+        <td>${e.legal_name || e.motus_raw || '—'}</td>
+        <td>${e.phone || '—'}</td>
+        <td>${[e.city, e.state].filter(Boolean).join(', ') || '—'}</td>
+        <td>${e.power_units ?? '—'}</td>
+        <td>${e.cargo_carried || '—'}</td>
+        <td>${e.authority_status || '—'}</td>
+        <td><button class="d-btn save-btn" onclick='saveRegCarrier(${JSON.stringify(e)})'>Save</button></td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+  } catch (err) {
+    wrap.innerHTML = '<div class="empty-state">Could not load results.</div>';
+    console.error(err);
+  }
+}
+
+async function saveRegCarrier(carrier) {
+  const res = await fetch('/api/saved', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(carrier),
+  });
+  if (res.ok) {
+    showToast('Saved to Saved MCs');
+  } else {
+    showToast('Could not save carrier');
+  }
+}
+
+function downloadRegCsv() {
+  window.location.href = '/api/motus-register/download';
+}
+
+loadRegQualified();
+</script>
+{% endblock %}
