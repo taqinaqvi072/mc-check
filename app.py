@@ -34,6 +34,23 @@ mode. In that mode requests go straight to FMCSA (rate-limited to
 roughly 1000 MC / 15 min, same pace as the old pre-proxy setup), and
 if FMCSA ever errors/blocks a request the engine auto-pauses for 90
 seconds and then resumes on its own — no manual restart needed.
+
+MOTUS AUTHHIST QUALIFICATION (Option A): rows coming from the Motus
+AuthHist "Daily Difference" feed (motus_worker below) have already
+been confirmed by FMCSA's own AuthHist dataset as status=Active,
+reason=Granted -- i.e. FMCSA itself says the carrier is newly
+authorized. FMCSA's separate public SAFER snapshot can lag AuthHist by
+a day or two, so re-checking "authority_status" on SAFER right after a
+fresh grant can wrongly show "not authorized yet" and bump a genuinely
+qualified carrier into the pending bucket. To avoid that false
+negative, Motus AuthHist results skip the SAFER authority_status check
+entirely (skip_authority_check=True) and treat AuthHist's own
+Active+Granted signal as authoritative. SAFER is still used to pull
+entity_type, power_units, phone, city/state etc. for display/filtering.
+The normal MC-range scanner and the Motus Register (PDF) flow are NOT
+affected by this -- they still require SAFER's authority_status to say
+Authorized, since those carriers have not already been confirmed
+Active+Granted by AuthHist.
 """
 import concurrent.futures
 import csv
@@ -393,6 +410,14 @@ def motus_worker(job_id, username, from_date, to_date):
     The Motus module now returns authority-history fields in addition to
     the USDOT number. Those fields are preserved on every result so the
     UI/CSV can show the authority date and docket that produced the lead.
+
+    OPTION A FIX: every row here has already been confirmed by FMCSA's own
+    AuthHist dataset as status=Active, reason=Granted (see motus.py's
+    _is_new_grant()). Because SAFER's public snapshot can lag AuthHist by a
+    day or two, we skip re-checking authority_status against SAFER for
+    these rows (skip_authority_check=True below) and treat AuthHist's own
+    signal as authoritative. SAFER is still queried to pull entity_type,
+    power_units, phone, city/state etc.
     """
     prefs = db.get_prefs(username)
 
@@ -470,11 +495,15 @@ def motus_worker(job_id, username, from_date, to_date):
         usdot = row["usdot"]
 
         # Motus AuthHist provides USDOT numbers, so query SAFER by USDOT.
+        # skip_authority_check=True: AuthHist already confirmed
+        # Active+Granted, so we don't let a lagging SAFER snapshot
+        # wrongly reject a genuinely newly-authorized carrier.
         entry = process_one(
             usdot,
             session_obj,
             prefs,
             query_param="USDOT",
+            skip_authority_check=True,
         )
 
         # Preserve the official AuthHist fields on the FMCSA result.
@@ -560,6 +589,10 @@ def motus_register_worker(job_id, username, from_date, to_date):
                 break
 
         usdot = row["usdot"]
+        # NOTE: Register (PDF) rows are just filed APPLICATIONS, not
+        # confirmed grants -- unlike motus_worker() above, we deliberately
+        # do NOT skip the SAFER authority_status check here, since most of
+        # these are genuinely still pending/not-authorized.
         entry = process_one(usdot, session_obj, prefs, query_param="USDOT")
         entry["motus_raw"] = row.get("raw", "")
         entry["motus_category"] = row.get("category", "")
@@ -879,33 +912,45 @@ def parse_carrier(html, mc_number):
     }
 
 
-def qualifies(data, prefs=None):
+def qualifies(data, prefs=None, skip_authority_check=False):
     """A carrier qualifies purely on entity type, authority status, and
     power units. Cargo type is no longer a qualification factor — every
     cargo type is accepted (client request). cargo_carried/cargo_categories
-    are still parsed and returned on every result purely for display."""
+    are still parsed and returned on every result purely for display.
+
+    skip_authority_check: True hone par SAFER ka 'authority_status' check
+    skip ho jata hai. Ye sirf Motus AuthHist ke 'Granted' rows ke liye use
+    hota hai — kyunke FMCSA ka apna AuthHist dataset khud confirm kar chuka
+    hota hai ke carrier newly-authorized hai, jabke SAFER ka public snapshot
+    1-2 din late sync hota hai. Isliye AuthHist ko hi authoritative maana
+    jata hai, SAFER sirf entity_type aur power_units nikalne ke liye use
+    hota hai.
+    """
     prefs = prefs or {}
     min_pu = prefs.get("min_power_units", 0)
     max_pu = prefs.get("max_power_units", 6)
 
     if data["entity_type"].upper() != "CARRIER":
         return False
-    auth = data["authority_status"].upper()
-    if "AUTHORIZED" not in auth or "NOT AUTHORIZED" in auth:
-        return False
+
+    if not skip_authority_check:
+        auth = data["authority_status"].upper()
+        if "AUTHORIZED" not in auth or "NOT AUTHORIZED" in auth:
+            return False
+
     if data["power_units"] is None or not (min_pu <= data["power_units"] <= max_pu):
         return False
 
     return True
 
 
-def process_one(mc, session_obj, prefs, query_param="MC_MX"):
+def process_one(mc, session_obj, prefs, query_param="MC_MX", skip_authority_check=False):
     time.sleep(PER_WORKER_DELAY)
     html = fetch_mc_page(mc, session_obj, query_param)
 
     if html and html != "__NOT_FOUND__":
         data = parse_carrier(html, mc)
-        qualified = qualifies(data, prefs)
+        qualified = qualifies(data, prefs, skip_authority_check=skip_authority_check)
         entry = dict(data)
         entry["qualified"] = qualified
         entry["not_found"] = False
