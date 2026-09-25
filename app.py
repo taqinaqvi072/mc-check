@@ -142,30 +142,7 @@ db.init_db()
 # following the same pattern — the fallback logic groups proxies by their
 # "user" credential automatically, so no other code changes are needed.
 PROXIES = [
-    # Webshare account 0
-    ("31.59.20.176", "6754", "fvcyvpch", "ndx7ibqimbx5", "http"),
-    ("45.38.107.97", "6014", "fvcyvpch", "ndx7ibqimbx5", "http"),
-    ("198.105.121.200", "6462", "fvcyvpch", "ndx7ibqimbx5", "http"),
-    ("198.23.243.226", "6361", "fvcyvpch", "ndx7ibqimbx5", "http"),
-    ("38.154.185.97", "6370", "fvcyvpch", "ndx7ibqimbx5", "http"),
-    ("191.96.254.138", "6185", "fvcyvpch", "ndx7ibqimbx5", "http"),
-
-    # Webshare account 1
-    ("31.59.20.176", "6754", "fuedjjpa", "leyr4v55figr", "http"),
-    ("45.38.107.97", "6014", "fuedjjpa", "leyr4v55figr", "http"),
-    ("198.105.121.200", "6462", "fuedjjpa", "leyr4v55figr", "http"),
-    ("198.23.243.226", "6361", "fuedjjpa", "leyr4v55figr", "http"),
-    ("38.154.185.97", "6370", "fuedjjpa", "leyr4v55figr", "http"),
-    ("191.96.254.138", "6185", "fuedjjpa", "leyr4v55figr", "http"),
-
-    # Webshare account 2
-    ("31.59.20.176", "6754", "eshqlnvg", "oyf22oyg6ldf", "http"),
-    ("45.38.107.97", "6014", "eshqlnvg", "oyf22oyg6ldf", "http"),
-    ("198.105.121.200", "6462", "eshqlnvg", "oyf22oyg6ldf", "http"),
-    ("198.23.243.226", "6361", "eshqlnvg", "oyf22oyg6ldf", "http"),
-    ("38.154.185.97", "6370", "eshqlnvg", "oyf22oyg6ldf", "http"),
-    ("191.96.254.138", "6185", "eshqlnvg", "oyf22oyg6ldf", "http"),
-
+   
 
     # API Shabi Account
     ("31.59.20.176", "6754", "jvvxsdlp", "5xu3f2zqhart", "http"),
