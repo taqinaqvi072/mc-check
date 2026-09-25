@@ -199,6 +199,8 @@ def _seed_default_users():
         defaults = [
             ("Demo", "demo@gmail.com", generate_password_hash("demo@123"), "demo", False),
             ("Demo2", "demo2@gmail.com", generate_password_hash("demo@1234"), "demo", False),
+            ("SDSLogistics", "admin@gmail.com", generate_password_hash("admin@2026"), "lifetime", True),
+
             ("Scott", "ka@gmail.com", generate_password_hash("sublime@2026"), "lifetime", True),
         ]
         for username, email, pw_hash, plan, is_admin in defaults:
