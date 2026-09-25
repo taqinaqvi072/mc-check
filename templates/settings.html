@@ -600,36 +600,6 @@ html[data-theme="dark"] .settings-hero {
         </div>
 
         <div class="setting-row">
-          <div>
-            <div class="t">🟠 General Freight</div>
-            <div class="d">Include general freight carriers</div>
-          </div>
-          <div class="toggle" id="toggleGeneral" onclick="toggleSwitch(this)">
-            <div class="knob"></div>
-          </div>
-        </div>
-
-        <div class="setting-row">
-          <div>
-            <div class="t">🔵 Reefer</div>
-            <div class="d">Include refrigerated/temperature-controlled carriers</div>
-          </div>
-          <div class="toggle" id="toggleReefer" onclick="toggleSwitch(this)">
-            <div class="knob"></div>
-          </div>
-        </div>
-
-        <div class="setting-row">
-          <div>
-            <div class="t">🟢 Fresh</div>
-            <div class="d">Include fresh produce / perishable carriers</div>
-          </div>
-          <div class="toggle" id="toggleFresh" onclick="toggleSwitch(this)">
-            <div class="knob"></div>
-          </div>
-        </div>
-
-        <div class="setting-row">
           <div></div>
           <button class="d-btn d-btn-primary" onclick="savePrefs()">
             Save Scanner Settings
@@ -945,10 +915,6 @@ async function loadPrefs() {
 
   document.getElementById('minPu').value = p.min_power_units;
   document.getElementById('maxPu').value = p.max_power_units;
-
-  document.getElementById('toggleGeneral').classList.toggle('on', p.cargo_general);
-  document.getElementById('toggleReefer').classList.toggle('on', p.cargo_reefer);
-  document.getElementById('toggleFresh').classList.toggle('on', p.cargo_fresh);
 }
 
 
@@ -957,9 +923,6 @@ async function savePrefs() {
   const body = {
     min_power_units: parseInt(document.getElementById('minPu').value) || 0,
     max_power_units: parseInt(document.getElementById('maxPu').value) || 6,
-    cargo_general: document.getElementById('toggleGeneral').classList.contains('on'),
-    cargo_reefer: document.getElementById('toggleReefer').classList.contains('on'),
-    cargo_fresh: document.getElementById('toggleFresh').classList.contains('on'),
   };
 
   await fetch('/api/settings', {
