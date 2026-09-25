@@ -751,8 +751,15 @@ function motusRenderLog(rows) {
     const entity =
       e.entity_type || '—';
 
+    // Agar AuthHist ne carrier ko qualify kar diya hai lekin SAFER abhi
+    // bhi "Not Authorized" dikha raha hai (sync lag), to ye clarify karo
+    // ke ye lag hai, koi mismatch/bug nahi — AuthHist ka signal authoritative hai.
+    const rawAuthority = e.authority_status || '';
+    const looksNotAuthorized = /not\s*authorized/i.test(rawAuthority) || !rawAuthority;
     const authority =
-      e.authority_status || '—';
+      (e.qualified && looksNotAuthorized)
+        ? `${rawAuthority || 'Not yet on SAFER'} <span style="opacity:.65;font-size:10px;">(AuthHist confirms Granted)</span>`
+        : (rawAuthority || '—');
 
     const powerUnits =
       e.power_units ?? '—';
