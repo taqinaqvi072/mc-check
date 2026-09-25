@@ -1767,7 +1767,13 @@ function badgeFor(entry) {
 }
 
 
-/* REASON */
+/* REASON
+   Qualification is based purely on entity type, authority status, and
+   power units — cargo type is no longer a qualification factor (every
+   cargo type is accepted), so this no longer reports "Cargo match" /
+   "Cargo mismatch". Once entity type + authority both pass and power
+   units are known, the only thing left that can fail qualification is
+   the power units range itself. */
 
 function reasonFor(entry) {
 
@@ -1807,9 +1813,9 @@ function reasonFor(entry) {
     return 'PU unknown';
 
   if (entry.qualified)
-    return 'Cargo match';
+    return 'Qualified';
 
-  return 'Cargo mismatch';
+  return 'PU out of range';
 
 }
 
