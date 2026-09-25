@@ -478,9 +478,14 @@ html[data-theme="dark"] .log-scroll td {
 
       <div class="range-hint">
 
-        Max 8-day range. Pulls the FMCSA Daily Register from Motus,
-        filters to Motor Carrier of Property / Passengers, then runs
-        each new USDOT through the existing qualification check.
+        Max 8-day range. Pulls FMCSA's Motus AuthHist Daily Difference feed
+        (authority-status changes), keeps only rows where authority was
+        newly GRANTED on that date, filters to Motor Carrier of
+        Property / Passengers, then pulls each carrier's details (power
+        units, entity type, phone, city/state) from SAFER. Since AuthHist
+        itself already confirms the grant, these carriers are marked
+        Qualified without re-checking authority status on SAFER (which can
+        lag AuthHist by a day or two).
 
       </div>
 
@@ -516,7 +521,7 @@ html[data-theme="dark"] .log-scroll td {
         <div class="stat">
 
           <div class="label">
-            Register Entries
+            AuthHist Rows
           </div>
 
           <div
@@ -728,7 +733,7 @@ function motusRenderLog(rows) {
           <th>Authority</th>
           <th>PU</th>
           <th>City/State</th>
-          <th>Note</th>
+          <th>Reason / Granted On</th>
         </tr>
 
       </thead>
@@ -757,9 +762,14 @@ function motusRenderLog(rows) {
         .filter(Boolean)
         .join(', ') || '—';
 
+    // AuthHist entries (this page) carry motus_reason /
+    // motus_status_change_date, never motus_raw — motus_raw only
+    // exists on Register (PDF) entries from the other page. Reading
+    // motus_raw here always came back empty; show the AuthHist reason
+    // and the date authority was granted instead.
     const note =
-      e.motus_raw
-        ? String(e.motus_raw).slice(0, 40)
+      (e.motus_reason || e.motus_status_change_date)
+        ? [e.motus_reason, e.motus_status_change_date].filter(Boolean).join(' · ')
         : '—';
 
 
@@ -829,7 +839,7 @@ function motusStageLabel(data) {
 
   if (data.stage === 'fetching') {
 
-    return 'Fetching Motus Daily Register…';
+    return 'Fetching Motus AuthHist Daily Difference…';
 
   }
 
