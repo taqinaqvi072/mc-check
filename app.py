@@ -47,7 +47,6 @@ import time
 import uuid
 from datetime import datetime, timedelta
 import motus as motus_mod
-import motus_register as motus_register_mod
 import requests
 from bs4 import BeautifulSoup
 from flask import Flask, jsonify, redirect, render_template, request, send_file, session, url_for
@@ -143,33 +142,32 @@ db.init_db()
 # following the same pattern — the fallback logic groups proxies by their
 # "user" credential automatically, so no other code changes are needed.
 PROXIES = [
+    # Webshare account 0
+    ("31.59.20.176", "6754", "fvcyvpch", "ndx7ibqimbx5", "http"),
+    ("45.38.107.97", "6014", "fvcyvpch", "ndx7ibqimbx5", "http"),
+    ("198.105.121.200", "6462", "fvcyvpch", "ndx7ibqimbx5", "http"),
+    ("198.23.243.226", "6361", "fvcyvpch", "ndx7ibqimbx5", "http"),
+    ("38.154.185.97", "6370", "fvcyvpch", "ndx7ibqimbx5", "http"),
+    ("191.96.254.138", "6185", "fvcyvpch", "ndx7ibqimbx5", "http"),
 
-    # API Shabi Account
-    ("31.59.20.176", "6754", "jvvxsdlp", "5xu3f2zqhart", "http"),
-    ("45.38.107.97", "6014", "jvvxsdlp", "5xu3f2zqhart", "http"),
-    ("198.23.243.226", "6361", "jvvxsdlp", "5xu3f2zqhart", "http"),
-    ("38.154.185.97", "6370", "jvvxsdlp", "5xu3f2zqhart", "http"),
-    ("191.96.254.138", "6185", "jvvxsdlp", "5xu3f2zqhart", "http"),
-    ("198.46.161.42", "5092", "jvvxsdlp", "5xu3f2zqhart", "http"),
+    # Webshare account 1
+    ("31.59.20.176", "6754", "fuedjjpa", "leyr4v55figr", "http"),
+    ("45.38.107.97", "6014", "fuedjjpa", "leyr4v55figr", "http"),
+    ("198.105.121.200", "6462", "fuedjjpa", "leyr4v55figr", "http"),
+    ("198.23.243.226", "6361", "fuedjjpa", "leyr4v55figr", "http"),
+    ("38.154.185.97", "6370", "fuedjjpa", "leyr4v55figr", "http"),
+    ("191.96.254.138", "6185", "fuedjjpa", "leyr4v55figr", "http"),
 
-    # mehak 1
-    ("31.59.20.176", "6754", "gtmgogwf", "lb2nvfsdbcuw", "http"),
-    ("45.38.107.97", "6014", "gtmgogwf", "lb2nvfsdbcuw", "http"),
-    ("198.23.243.226", "6361", "gtmgogwf", "lb2nvfsdbcuw", "http"),
-    ("38.154.185.97", "6370", "gtmgogwf", "lb2nvfsdbcuw", "http"),
-    ("191.96.254.138", "6185", "gtmgogwf", "lb2nvfsdbcuw", "http"),
-    ("198.46.161.42", "5092", "gtmgogwf", "lb2nvfsdbcuw", "http"),
-
-    # mehak 2
-    ("31.59.20.176", "6754", "mgmmtqbd", "9dxxbjx501ox", "http"),
-    ("45.38.107.97", "6014", "mgmmtqbd", "9dxxbjx501ox", "http"),
-    ("198.23.243.226", "6361", "mgmmtqbd", "9dxxbjx501ox", "http"),
-    ("38.154.185.97", "6370", "mgmmtqbd", "9dxxbjx501ox", "http"),
-    ("191.96.254.138", "6185", "mgmmtqbd", "9dxxbjx501ox", "http"),
-    ("198.46.161.42", "5092", "mgmmtqbd", "9dxxbjx501ox", "http"),
+    
+    # Webshare account 2
+    ("31.59.20.176", "6754", "eshqlnvg", "oyf22oyg6ldf", "http"),
+    ("45.38.107.97", "6014", "eshqlnvg", "oyf22oyg6ldf", "http"),
+    ("198.105.121.200", "6462", "eshqlnvg", "oyf22oyg6ldf", "http"),
+    ("198.23.243.226", "6361", "eshqlnvg", "oyf22oyg6ldf", "http"),
+    ("38.154.185.97", "6370", "eshqlnvg", "oyf22oyg6ldf", "http"),
+    ("191.96.254.138", "6185", "eshqlnvg", "oyf22oyg6ldf", "http"),
 
    
-
 ]
 _proxy_index = [0]
 _proxy_lock = threading.Lock()
@@ -312,9 +310,6 @@ jobs = {}
 motus_jobs_lock = threading.Lock()
 motus_jobs = {}
 
-motus_register_jobs_lock = threading.Lock()
-motus_register_jobs = {}
-
 MOTUS_DEFAULT_CATEGORIES = [
     "MOTOR CARRIER OF PROPERTY",
     "MOTOR CARRIER OF PASSENGERS",
@@ -322,26 +317,6 @@ MOTUS_DEFAULT_CATEGORIES = [
 
 
 def new_motus_job_state():
-    return {
-        "running": False,
-        "stage": "idle",
-        "current": 0,
-        "total": 0,
-        "log": [],
-        "qualified_results": [],
-        "pending_results": [],
-        "error_results": [],
-        "start_time": None,
-        "finished_time": None,
-        "stop_requested": False,
-        "from_date": None,
-        "to_date": None,
-        "register_count": 0,
-        "fetch_error": None,
-    }
-
-
-def new_motus_register_job_state():
     return {
         "running": False,
         "stage": "idle",
@@ -373,27 +348,12 @@ def get_or_create_motus_job_id():
     return job_id
 
 
-def get_or_create_motus_register_job_id():
-    job_id = session.get("motus_register_job_id")
-    with motus_register_jobs_lock:
-        if not job_id or job_id not in motus_register_jobs:
-            job_id = str(uuid.uuid4())
-            motus_register_jobs[job_id] = new_motus_register_job_state()
-            session["motus_register_job_id"] = job_id
-    return job_id
-
-
 def motus_worker(job_id, username, from_date, to_date):
-    """Run Motus AuthHist Daily Difference -> FMCSA qualification checks.
-
-    The Motus module now returns authority-history fields in addition to
-    the USDOT number. Those fields are preserved on every result so the
-    UI/CSV can show the authority date and docket that produced the lead.
-    """
     prefs = db.get_prefs(username)
 
     with motus_jobs_lock:
         st = motus_jobs.get(job_id)
+
         if st is None:
             return
 
@@ -416,56 +376,47 @@ def motus_worker(job_id, username, from_date, to_date):
         })
 
     try:
-        # fetch_and_parse_range() is kept as the public interface for
-        # compatibility, but it now reads Motus AuthHist Daily Difference
-        # rather than downloading Register PDFs.
-        deduped_rows, source_count = motus_mod.fetch_and_parse_range(
+        deduped_rows, days_found = motus_mod.fetch_and_parse_range(
             from_date,
             to_date,
             MOTUS_DEFAULT_CATEGORIES,
         )
+
     except Exception as e:
         with motus_jobs_lock:
             st = motus_jobs.get(job_id)
+
             if st:
                 st["running"] = False
                 st["stage"] = "error"
-                st["fetch_error"] = f"Could not fetch Motus AuthHist data: {e}"
+                st["fetch_error"] = f"Could not fetch/parse Motus Register: {e}"
                 st["finished_time"] = time.time()
+
         return
 
     with motus_jobs_lock:
         st = motus_jobs.get(job_id)
+
         if st is None:
             return
 
         st["stage"] = "checking"
         st["total"] = len(deduped_rows)
-        # This field is retained for frontend compatibility. It now means
-        # filtered AuthHist records, not Register PDFs.
         st["register_count"] = len(deduped_rows)
-
-        st["log"].append({
-            "motus_info": True,
-            "source_rows": source_count,
-            "filtered_rows": len(deduped_rows),
-            "message": (
-                f"AuthHist Daily Difference: {source_count} source rows, "
-                f"{len(deduped_rows)} Property/Passenger rows"
-            ),
-        })
 
     # Same FMCSA session/proxy system as the normal MC scanner.
     session_obj = init_session()
 
     for row in deduped_rows:
+
         with motus_jobs_lock:
             if motus_jobs.get(job_id, {}).get("stop_requested"):
                 break
 
         usdot = row["usdot"]
 
-        # Motus AuthHist provides USDOT numbers, so query SAFER by USDOT.
+        # IMPORTANT:
+        # Motus gives USDOT numbers, therefore query_param MUST be USDOT.
         entry = process_one(
             usdot,
             session_obj,
@@ -473,113 +424,37 @@ def motus_worker(job_id, username, from_date, to_date):
             query_param="USDOT",
         )
 
-        # Preserve the official AuthHist fields on the FMCSA result.
-        entry["motus_docket"] = row.get("docket", "")
-        entry["motus_category"] = row.get("category", "")
-        entry["motus_status"] = row.get("status", "")
-        entry["motus_reason"] = row.get("reason", "")
-        entry["motus_status_change_date"] = row.get("status_change_date", "")
-        # Keep this alias convenient for frontend table columns.
-        entry["motus_authority_date"] = row.get("status_change_date", "")
-
-        with motus_jobs_lock:
-            st = motus_jobs.get(job_id)
-            if st is None:
-                break
-
-            st["current"] += 1
-            st["log"].append(entry)
-            if len(st["log"]) > 200:
-                st["log"] = st["log"][-200:]
-
-            if entry.get("qualified"):
-                st["qualified_results"].append(entry)
-            elif entry.get("fetch_error"):
-                st["error_results"].append(entry)
-            else:
-                st["pending_results"].append(entry)
-
-    with motus_jobs_lock:
-        st = motus_jobs.get(job_id)
-        if st:
-            st["running"] = False
-            st["stage"] = "stopped" if st.get("stop_requested") else "done"
-            st["finished_time"] = time.time()
-
-
-def motus_register_worker(job_id, username, from_date, to_date):
-    """Daily Register (PDF) -> FMCSA qualification checks. Lists every
-    new application filed in the date range, regardless of whether
-    authority has been granted yet -- most will show as pending/not
-    authorized, which is expected for this feed."""
-    prefs = db.get_prefs(username)
-
-    with motus_register_jobs_lock:
-        st = motus_register_jobs.get(job_id)
-        if st is None:
-            return
-        st.update({
-            "running": True, "stage": "fetching", "current": 0, "total": 0,
-            "log": [], "qualified_results": [], "pending_results": [], "error_results": [],
-            "start_time": time.time(), "finished_time": None, "stop_requested": False,
-            "from_date": from_date, "to_date": to_date, "register_count": 0,
-            "fetch_error": None,
-        })
-
-    try:
-        deduped_rows, days_found = motus_register_mod.fetch_and_parse_range(
-            from_date, to_date, motus_register_mod.MOTUS_INCLUDE_CATEGORIES,
-        )
-    except Exception as e:
-        with motus_register_jobs_lock:
-            st = motus_register_jobs.get(job_id)
-            if st:
-                st["running"] = False
-                st["stage"] = "error"
-                st["fetch_error"] = f"Could not fetch/parse Motus Register: {e}"
-                st["finished_time"] = time.time()
-        return
-
-    with motus_register_jobs_lock:
-        st = motus_register_jobs.get(job_id)
-        if st is None:
-            return
-        st["stage"] = "checking"
-        st["total"] = len(deduped_rows)
-        st["register_count"] = len(deduped_rows)
-
-    session_obj = init_session()
-
-    for row in deduped_rows:
-        with motus_register_jobs_lock:
-            if motus_register_jobs.get(job_id, {}).get("stop_requested"):
-                break
-
-        usdot = row["usdot"]
-        entry = process_one(usdot, session_obj, prefs, query_param="USDOT")
         entry["motus_raw"] = row.get("raw", "")
         entry["motus_category"] = row.get("category", "")
 
-        with motus_register_jobs_lock:
-            st = motus_register_jobs.get(job_id)
+        with motus_jobs_lock:
+            st = motus_jobs.get(job_id)
+
             if st is None:
                 break
+
             st["current"] += 1
+
             st["log"].append(entry)
+
             if len(st["log"]) > 200:
                 st["log"] = st["log"][-200:]
+
             if entry.get("qualified"):
                 st["qualified_results"].append(entry)
-            elif entry.get("fetch_error"):
-                st["error_results"].append(entry)
-            else:
-                st["pending_results"].append(entry)
 
-    with motus_register_jobs_lock:
-        st = motus_register_jobs.get(job_id)
+            else:
+                if entry.get("fetch_error"):
+                    st["error_results"].append(entry)
+                else:
+                    st["pending_results"].append(entry)
+
+    with motus_jobs_lock:
+        st = motus_jobs.get(job_id)
+
         if st:
             st["running"] = False
-            st["stage"] = "stopped" if st.get("stop_requested") else "done"
+            st["stage"] = "done"
             st["finished_time"] = time.time()
 
 # ---------------------------------------------------------------------------
@@ -592,7 +467,7 @@ PLAN_INFO = {
     "demo": {
         "label": "Demo",
         "price_pkr": 0,
-        "total_limit": 10000,   # can check 5000 MC total, then must upgrade
+        "total_limit": 6500,   # can check 5000 MC total, then must upgrade
         "daily_limit": None,
         "unlimited": False,
     },
@@ -1446,7 +1321,6 @@ def motus_status():
             "current": st["current"],
             "total": st["total"],
             "register_count": st["register_count"],
-            "source": "Motus AuthHist Daily Difference",
             "recent_log": list(reversed(st["log"][-25:])),
             "qualified_count": len(st["qualified_results"]),
             "pending_count": len(st["pending_results"]),
@@ -1486,106 +1360,6 @@ def motus_download():
     )
 
 
-@app.route("/motus-register-search")
-@login_required
-def motus_register_search_page():
-    get_or_create_motus_register_job_id()
-    return render_template("motus_register_search.html", **base_ctx())
-
-
-@app.route("/motus-register-qualified")
-@login_required
-def motus_register_qualified_page():
-    get_or_create_motus_register_job_id()
-    return render_template("motus_register_qualified.html", **base_ctx())
-
-
-@app.route("/api/motus-register/start", methods=["POST"])
-@login_required
-def motus_register_start():
-    job_id = get_or_create_motus_register_job_id()
-    with motus_register_jobs_lock:
-        if motus_register_jobs[job_id]["running"]:
-            return jsonify({"error": "A Register search is already running"}), 400
-
-    data = request.get_json(force=True)
-    from_date = (data.get("from_date") or "").strip()
-    to_date = (data.get("to_date") or "").strip()
-    if not from_date or not to_date:
-        return jsonify({"error": "Both from_date and to_date are required (YYYY-MM-DD)"}), 400
-
-    try:
-        d1 = datetime.strptime(from_date, "%Y-%m-%d")
-        d2 = datetime.strptime(to_date, "%Y-%m-%d")
-    except ValueError:
-        return jsonify({"error": "Dates must be in YYYY-MM-DD format"}), 400
-
-    if d2 < d1:
-        return jsonify({"error": "End date must be on or after start date"}), 400
-    if (d2 - d1).days > 7:
-        return jsonify({"error": "Max range is 8 calendar days"}), 400
-
-    username = session["username"]
-    t = threading.Thread(
-        target=motus_register_worker,
-        args=(job_id, username, from_date, to_date),
-        daemon=True,
-    )
-    t.start()
-    return jsonify({"ok": True})
-
-
-@app.route("/api/motus-register/stop", methods=["POST"])
-@login_required
-def motus_register_stop():
-    job_id = get_or_create_motus_register_job_id()
-    with motus_register_jobs_lock:
-        motus_register_jobs[job_id]["stop_requested"] = True
-    return jsonify({"ok": True})
-
-
-@app.route("/api/motus-register/status")
-@login_required
-def motus_register_status():
-    job_id = get_or_create_motus_register_job_id()
-    with motus_register_jobs_lock:
-        st = motus_register_jobs[job_id]
-        return jsonify({
-            "running": st["running"],
-            "stage": st["stage"],
-            "current": st["current"],
-            "total": st["total"],
-            "register_count": st["register_count"],
-            "recent_log": list(reversed(st["log"][-25:])),
-            "qualified_count": len(st["qualified_results"]),
-            "pending_count": len(st["pending_results"]),
-            "error_count": len(st["error_results"]),
-            "from_date": st["from_date"],
-            "to_date": st["to_date"],
-            "fetch_error": st["fetch_error"],
-        })
-
-
-@app.route("/api/motus-register/results")
-@login_required
-def motus_register_results():
-    job_id = get_or_create_motus_register_job_id()
-    with motus_register_jobs_lock:
-        st = motus_register_jobs[job_id]
-        return jsonify({
-            "qualified": st["qualified_results"],
-            "pending": st["pending_results"],
-            "errors": st["error_results"],
-        })
-
-
-@app.route("/api/motus-register/download")
-@login_required
-def motus_register_download():
-    job_id = get_or_create_motus_register_job_id()
-    with motus_register_jobs_lock:
-        rows = list(motus_register_jobs[job_id]["qualified_results"])
-    return _csv_response(rows, "motus_register_qualified_carriers.csv")
 
 
 @app.route("/qualified")
@@ -1805,15 +1579,8 @@ def download():
 
 def _csv_response(rows, filename):
     output = io.StringIO()
-    fieldnames = [
-        "mc_number", "entity_type", "authority_status", "legal_name",
-        "dba_name", "phone", "power_units", "cargo_carried",
-        "city", "state",
-        # Motus/AuthHist fields — ignored for normal scanner CSV rows.
-        "motus_docket", "motus_category", "motus_status",
-        "motus_reason", "motus_status_change_date",
-        "motus_authority_date",
-    ]
+    fieldnames = ["mc_number", "entity_type", "authority_status", "legal_name",
+                  "dba_name", "phone", "power_units", "cargo_carried", "city", "state"]
     writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction="ignore")
     writer.writeheader()
     for r in rows:
