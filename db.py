@@ -85,6 +85,13 @@ def init_db():
     # lock, only that one line is at risk of timing out, not the entire
     # 80-line block, and every successfully-created table commits right
     # away instead of everything staying open in one long transaction.
+    #
+    # NOTE: prefs no longer has cargo_general/cargo_reefer/cargo_fresh
+    # columns for NEW databases — cargo type is no longer a qualification
+    # factor (client wants every cargo type accepted). An existing
+    # Supabase database created before this change will still have those
+    # 3 columns sitting there unused; see the DROP COLUMN migration block
+    # further down, which removes them safely if present.
     table_statements = [
         """CREATE TABLE IF NOT EXISTS users (
             username TEXT PRIMARY KEY,
@@ -130,10 +137,7 @@ def init_db():
         """CREATE TABLE IF NOT EXISTS prefs (
             username TEXT PRIMARY KEY,
             min_power_units INTEGER DEFAULT 0,
-            max_power_units INTEGER DEFAULT 6,
-            cargo_general INTEGER DEFAULT 1,
-            cargo_reefer INTEGER DEFAULT 1,
-            cargo_fresh INTEGER DEFAULT 1
+            max_power_units INTEGER DEFAULT 6
         )""",
         """CREATE TABLE IF NOT EXISTS usage (
             username TEXT PRIMARY KEY,
@@ -177,6 +181,22 @@ def init_db():
     except Exception as e:
         conn.rollback()
         print(f"[db.init_db] Skipped is_admin column migration (will retry next start): {e}")
+
+    # Drop the old cargo_general/cargo_reefer/cargo_fresh columns from
+    # `prefs` if they exist (databases created before cargo-type filtering
+    # was removed). Cargo type is no longer used to qualify carriers, so
+    # these columns are dead weight. Safe/no-op on a fresh database where
+    # the table was just created without them (IF EXISTS).
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SET LOCAL lock_timeout = '5s'")
+            cur.execute("ALTER TABLE prefs DROP COLUMN IF EXISTS cargo_general")
+            cur.execute("ALTER TABLE prefs DROP COLUMN IF EXISTS cargo_reefer")
+            cur.execute("ALTER TABLE prefs DROP COLUMN IF EXISTS cargo_fresh")
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        print(f"[db.init_db] Skipped cargo columns drop (will retry next start): {e}")
 
     _seed_default_users()
     # Make sure the K&A admin account is always marked admin, even on a
@@ -495,27 +515,19 @@ def get_prefs(username):
         row = cur.fetchone()
     d = dict(row)
     d.pop("username")
-    d["cargo_general"] = bool(d["cargo_general"])
-    d["cargo_reefer"] = bool(d["cargo_reefer"])
-    d["cargo_fresh"] = bool(d["cargo_fresh"])
     return d
 
 
 def save_prefs(username, data):
     conn = get_conn()
     current = get_prefs(username)
-    for key in ["min_power_units", "max_power_units", "cargo_general", "cargo_reefer", "cargo_fresh"]:
+    for key in ["min_power_units", "max_power_units"]:
         if key in data:
             current[key] = data[key]
     with conn.cursor() as cur:
         cur.execute(
-            """UPDATE prefs SET min_power_units=%s, max_power_units=%s, cargo_general=%s,
-               cargo_reefer=%s, cargo_fresh=%s WHERE username=%s""",
-            (
-                current["min_power_units"], current["max_power_units"],
-                int(bool(current["cargo_general"])), int(bool(current["cargo_reefer"])),
-                int(bool(current["cargo_fresh"])), username,
-            ),
+            "UPDATE prefs SET min_power_units=%s, max_power_units=%s WHERE username=%s",
+            (current["min_power_units"], current["max_power_units"], username),
         )
     conn.commit()
 
