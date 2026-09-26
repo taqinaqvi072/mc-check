@@ -13,21 +13,23 @@ authority for the first time), we additionally require the row's `reason`
 field to indicate a GRANT, excluding reinstatements/suspensions/
 revocations/withdrawals.
 
-CONFIRMED (checked live against the Socrata endpoint): usdot_number,
-docket_number, op_auth_type, op_auth_status, reason, status_change_date
-are exactly the field names FMCSA uses, and the $where date-range filter
-below works correctly (status_change_date is a Socrata date-type field --
-it just displays compactly as "YYYYMMDD" in JSON, but SoQL comparisons
-against it still work). No changes were needed in this file.
-
-Note: the live dataset also carries a reason value not originally
-anticipated -- "Published to FMCSA Register" (status Pending). It is
-correctly excluded by the existing GRANT_KEYWORDS/EXCLUDE_KEYWORDS logic
-below since it doesn't contain "GRANT".
+The exact machine field names below (usdot_number, docket_number,
+op_auth_type, op_auth_status, reason, status_change_date) are the ones
+ChatGPT supplied and match public documentation/screenshots of this
+dataset, but they have NOT been confirmed against a live raw response
+yet. This version prints the raw Socrata error body (if any) and a
+sample of raw rows/status/reason values to your host's logs (e.g.
+Render's Logs tab) on every run, so any field-name mismatch shows up
+immediately instead of failing silently or being misread as "0 results".
 """
 import requests
 
-MOTUS_AUTHHIST_API = "https://data.transportation.gov/resource/dm5j-zc6c.json"
+# "Motus AuthHist" (dm5j-zc6c) is a DAILY DIFFERENCE dataset -- it only
+# contains records updated in the past ~24 hours, so any date range older
+# than that returns 0 rows. For historical queries we need the companion
+# "Motus AuthHist - All With History" dataset instead, which has the same
+# schema but keeps the FULL history going back.
+MOTUS_AUTHHIST_API = "https://data.transportation.gov/resource/yu5v-wbh6.json"
 MOTUS_INCLUDE_CATEGORIES = [
     "MOTOR CARRIER OF PROPERTY",
     "MOTOR CARRIER OF PASSENGERS",
