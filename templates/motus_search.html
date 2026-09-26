@@ -3,19 +3,9 @@
 {% block title %}Motus Search{% endblock %}
 
 {% block extra_style %}
-
 <style>
-.dashboard {
-  min-height: 100%;
-}
-
-.dashboard-body {
-  padding: 24px 28px;
-}
-
-/* =========================
-   TOP CONTROLS
-========================= */
+.dashboard { min-height: 100%; }
+.dashboard-body { padding: 24px 28px; }
 
 .scan-controls-motus {
   display: grid;
@@ -23,1544 +13,296 @@
   align-items: end;
   gap: 10px;
 }
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-
+.field { display: flex; flex-direction: column; gap: 7px; }
 .field label {
-  color: #293548;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
+  color: #293548; font-size: 10px; font-weight: 700; text-transform: uppercase;
 }
-
-html[data-theme="dark"] .field label {
-  color: #c5ceda;
-}
-
+html[data-theme="dark"] .field label { color: #c5ceda; }
 .field input {
-  width: 100%;
-  height: 43px;
-  padding: 0 13px;
-  border: 1px solid #dce2e9;
-  border-radius: 9px;
-  outline: none;
-  background: #fff;
-  color: #172235;
-  font-size: 13px;
-  box-sizing: border-box;
+  width: 100%; height: 43px; padding: 0 13px;
+  border: 1px solid #dce2e9; border-radius: 9px; outline: none;
+  background: #fff; color: #172235; font-size: 13px;
 }
-
 html[data-theme="dark"] .field input {
-  background: #111923;
-  border-color: #303b49;
-  color: #fff;
+  background: #111923; border-color: #303b49; color: #fff;
 }
-
 .field input:focus {
-  border-color: var(--orange);
-  box-shadow: 0 0 0 3px rgba(255, 101, 0, .09);
+  border-color: var(--orange); box-shadow: 0 0 0 3px rgba(255,101,0,.09);
 }
-
-/* =========================
-   BUTTONS
-========================= */
-
 .d-btn {
-  height: 43px;
-  border: 1px solid #dce2e9;
-  border-radius: 9px;
-  background: #fff;
-  color: #253044;
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: .15s ease;
+  height: 43px; border: 1px solid #dce2e9; border-radius: 9px;
+  background: #fff; color: #253044; font-size: 12px; font-weight: 700; white-space: nowrap;
 }
-
-.d-btn:hover:not(:disabled) {
-  border-color: #c8d0da;
-  transform: translateY(-1px);
-}
-
-html[data-theme="dark"] .d-btn {
-  background: #18212d;
-  color: #edf2f7;
-  border-color: #303b49;
-}
-
+html[data-theme="dark"] .d-btn { background: #18212d; color: #edf2f7; border-color: #303b49; }
 .d-btn-primary {
-  border-color: var(--orange);
-  background: var(--orange);
-  color: #fff;
-  box-shadow: 0 5px 12px rgba(255, 101, 0, .17);
+  border-color: var(--orange); background: var(--orange); color: #fff;
+  box-shadow: 0 5px 12px rgba(255,101,0,.17);
 }
-
-.d-btn-primary:hover:not(:disabled) {
-  background: var(--orange-dark);
-  border-color: var(--orange-dark);
-}
-
-.d-btn:disabled {
-  opacity: .45;
-  cursor: not-allowed;
-  transform: none;
-}
-
-/* =========================
-   CARDS
-========================= */
+.d-btn-primary:hover { background: var(--orange-dark); }
+.d-btn:disabled { opacity: .45; cursor: not-allowed; }
 
 .d-card {
-  background: rgba(255, 255, 255, .97);
-  border: 1px solid #e0e5ec;
-  border-radius: 15px;
-  box-shadow: 0 7px 22px rgba(35, 48, 70, .055);
+  background: rgba(255,255,255,.97); border: 1px solid #e0e5ec;
+  border-radius: 15px; box-shadow: 0 7px 22px rgba(35,48,70,.055);
   padding: 17px;
 }
-
 html[data-theme="dark"] .d-card {
-  background: rgba(20, 27, 37, .97);
-  border-color: #293442;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, .22);
+  background: rgba(20,27,37,.97); border-color: #293442; box-shadow: 0 10px 30px rgba(0,0,0,.22);
 }
 
-/* =========================
-   HINT / ERROR
-========================= */
-
 .range-hint {
-  margin-top: 8px;
-  color: #8993a1;
-  font-size: 11px;
+  margin-top: 8px; color: #8993a1; font-size: 11px;
 }
 
 .error-msg {
-  display: none;
-  margin-top: 9px;
-  padding: 8px 10px;
-  border-radius: 7px;
-  background: #fff0eb;
-  color: #c44c00;
-  font-size: 11px;
+  display: none; margin-top: 9px; padding: 8px 10px; border-radius: 7px;
+  background: #fff0eb; color: #c44c00; font-size: 11px;
 }
-
-/* =========================
-   STAGE
-========================= */
 
 .stage-banner {
-  display: none;
-  align-items: center;
-  gap: 10px;
-  margin: 14px 0 0;
-  padding: 12px 15px;
-  border-radius: 10px;
-  border: 1px solid #dce2e9;
-  background: #fbfcfd;
-  color: #3d495c;
-  font-size: 12.5px;
+  display: none; align-items: center; gap: 10px; margin: 14px 0 0;
+  padding: 12px 15px; border-radius: 10px; border: 1px solid #dce2e9;
+  background: #fbfcfd; color: #3d495c; font-size: 12.5px;
 }
-
-html[data-theme="dark"] .stage-banner {
-  background: #111923;
-  border-color: #2b3542;
-  color: #c7d0db;
-}
-
-/* =========================
-   STATS
-========================= */
+html[data-theme="dark"] .stage-banner { background: #111923; border-color: #2b3542; color: #c7d0db; }
 
 .stats {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 9px;
-  margin-top: 16px;
+  display: grid; grid-template-columns: repeat(5,1fr); gap: 9px; margin-top: 16px;
 }
-
 .stat {
-  min-height: 66px;
-  padding: 10px 11px;
-  border: 1px solid #e0e5eb;
-  border-radius: 10px;
-  background: #fbfcfd;
-  box-sizing: border-box;
+  min-height: 66px; padding: 10px 11px; border: 1px solid #e0e5eb;
+  border-radius: 10px; background: #fbfcfd;
 }
+html[data-theme="dark"] .stat { background: #111923; border-color: #2b3542; }
+.stat .label { color: #697486; font-size: 9px; font-weight: 650; text-transform: uppercase; }
+html[data-theme="dark"] .stat .label { color: #929eae; }
+.stat .value { margin-top: 6px; color: #172235; font-size: 18px; font-weight: 750; }
+html[data-theme="dark"] .stat .value { color: #f1f4f8; }
+.stat.good .value { color: var(--fresh); }
+.stat.error-stat .value { color: var(--orange); }
 
-html[data-theme="dark"] .stat {
-  background: #111923;
-  border-color: #2b3542;
-}
-
-.stat .label {
-  color: #697486;
-  font-size: 9px;
-  font-weight: 650;
-  text-transform: uppercase;
-}
-
-html[data-theme="dark"] .stat .label {
-  color: #929eae;
-}
-
-.stat .value {
-  margin-top: 6px;
-  color: #172235;
-  font-size: 18px;
-  font-weight: 750;
-}
-
-html[data-theme="dark"] .stat .value {
-  color: #f1f4f8;
-}
-
-.stat.good .value {
-  color: var(--fresh);
-}
-
-.stat.error-stat .value {
-  color: var(--orange);
-}
-
-/* =========================
-   LOG
-========================= */
-
-.log-card {
-  margin-top: 15px;
-}
-
-.card-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.card-title {
-  color: #172235;
-  font-size: 15px;
-  font-weight: 750;
-}
-
-html[data-theme="dark"] .card-title {
-  color: #f1f4f8;
-}
-
-.log-scroll {
-  max-height: 420px;
-  margin-top: 15px;
-  overflow: auto;
-}
-
-.log-scroll table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
+.log-card { margin-top: 15px; }
+.card-title-row { display: flex; align-items: center; justify-content: space-between; }
+.card-title { color: #172235; font-size: 15px; font-weight: 750; }
+html[data-theme="dark"] .card-title { color: #f1f4f8; }
+.log-scroll { max-height: 320px; margin-top: 15px; overflow: auto; }
+.log-scroll table { width: 100%; border-collapse: collapse; }
 .log-scroll th {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  padding: 8px;
-  color: #7a8494;
-  border-bottom: 1px solid #e4e8ed;
-  background: #fff;
-  font-size: 9px;
-  text-align: left;
-  text-transform: uppercase;
+  padding: 8px; color: #7a8494; border-bottom: 1px solid #e4e8ed;
+  font-size: 9px; text-align: left; text-transform: uppercase;
 }
+.log-scroll td { padding: 9px 8px; color: #3d495c; border-bottom: 1px solid #edf0f3; font-size: 11px; }
+html[data-theme="dark"] .log-scroll th, html[data-theme="dark"] .log-scroll td { border-color: #2b3542; }
+html[data-theme="dark"] .log-scroll td { color: #c7d0db; }
+.badge { display: inline-flex; padding: 4px 8px; border-radius: 999px; font-size: 9px; font-weight: 700; }
+.badge.fresh { color: #087b50; background: #e6f7f0; }
+.badge.error { color: #b91c1c; background: #feecec; }
+.badge.neutral { color: #6b7585; background: #eef1f4; }
 
-html[data-theme="dark"] .log-scroll th {
-  background: #141b25;
-  border-color: #2b3542;
-}
-
-.log-scroll td {
-  padding: 9px 8px;
-  color: #3d495c;
-  border-bottom: 1px solid #edf0f3;
-  font-size: 11px;
-}
-
-html[data-theme="dark"] .log-scroll td {
-  color: #c7d0db;
-  border-color: #2b3542;
-}
-
-/* =========================
-   BADGES
-========================= */
-
-.badge {
-  display: inline-flex;
-  padding: 4px 8px;
-  border-radius: 999px;
-  font-size: 9px;
-  font-weight: 700;
-}
-
-.badge.fresh {
-  color: #087b50;
-  background: #e6f7f0;
-}
-
-.badge.error {
-  color: #b91c1c;
-  background: #feecec;
-}
-
-.badge.neutral {
-  color: #6b7585;
-  background: #eef1f4;
-}
-
-/* =========================
-   TOP ACTION
-========================= */
-
-.top-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 14px;
-}
-
-/* =========================
-   RESPONSIVE
-========================= */
-
-@media (max-width: 900px) {
-  .scan-controls-motus {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .scan-controls-motus > div:nth-child(3) {
-    display: none;
-  }
-
-  .stats {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (max-width: 600px) {
-  .dashboard-body {
-    padding: 18px 14px;
-  }
-
-  .scan-controls-motus {
-    grid-template-columns: 1fr;
-  }
-
-  .stats {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .top-actions {
-    justify-content: stretch;
-  }
-
-  .top-actions .d-btn {
-    width: 100%;
-  }
-
-  .log-scroll {
-    max-height: 350px;
-  }
-}
+.top-actions { display: flex; justify-content: flex-end; margin-bottom: 14px; }
 </style>
-
 {% endblock %}
 
-
 {% block content %}
-
 <div class="dashboard">
-
   <div class="dashboard-body">
 
-    <!-- =========================
-         TOP ACTION
-    ========================== -->
-
     <div class="top-actions">
-
-      <a
-        href="{{ url_for('motus_qualified_page') }}"
-        class="d-btn"
-        style="
-          text-decoration:none;
-          display:inline-flex;
-          align-items:center;
-          justify-content:center;
-          padding:0 14px;
-          box-sizing:border-box;
-        "
-      >
+      <a href="{{ url_for('motus_qualified_page') }}" class="d-btn" style="text-decoration:none; display:inline-flex; align-items:center;">
         View Motus Qualified →
       </a>
-
     </div>
 
-
-    <!-- =========================
-         SEARCH CARD
-    ========================== -->
-
     <div class="d-card">
-
       <div class="scan-controls-motus">
 
-        <!-- FROM DATE -->
         <div class="field">
-
-          <label for="motusFrom">
-            From Date
-          </label>
-
-          <input
-            type="date"
-            id="motusFrom"
-          >
-
+          <label>From Date</label>
+          <input type="date" id="motusFrom">
         </div>
 
-
-        <!-- TO DATE -->
         <div class="field">
-
-          <label for="motusTo">
-            To Date
-          </label>
-
-          <input
-            type="date"
-            id="motusTo"
-          >
-
+          <label>To Date</label>
+          <input type="date" id="motusTo">
         </div>
 
-
-        <!-- SPACER -->
         <div></div>
 
-
-        <!-- SEARCH -->
-        <button
-          type="button"
-          class="d-btn d-btn-primary"
-          id="motusStartBtn"
-          onclick="motusStart()"
-        >
+        <button class="d-btn d-btn-primary" id="motusStartBtn" onclick="motusStart()">
           Search
         </button>
 
-
-        <!-- STOP -->
-        <button
-          type="button"
-          class="d-btn"
-          id="motusStopBtn"
-          onclick="motusStop()"
-          disabled
-        >
+        <button class="d-btn" id="motusStopBtn" onclick="motusStop()" disabled>
           Stop
         </button>
 
       </div>
 
-
-      <!-- RANGE HINT -->
-
       <div class="range-hint">
-
-        Max 8-day range. Pulls FMCSA's Motus AuthHist Daily Difference feed
-        (authority-status changes), keeps only rows where authority was
-        newly GRANTED on that date, filters to Motor Carrier of
-        Property / Passengers, then pulls each carrier's details (power
-        units, entity type, phone, city/state) from SAFER. Since AuthHist
-        itself already confirms the grant, these carriers are marked
-        Qualified without re-checking authority status on SAFER (which can
-        lag AuthHist by a day or two).
-
+        Max 8-day range. Pulls Motus AuthHist authority-status changes for the range, keeps only
+        newly GRANTED authority (Motor Carrier of Property / Passengers), then runs each USDOT
+        through the existing qualification check.
       </div>
 
+      <div class="error-msg" id="motusErrorMsg"></div>
 
-      <!-- ERROR -->
-
-      <div
-        class="error-msg"
-        id="motusErrorMsg"
-      ></div>
-
-
-      <!-- STAGE -->
-
-      <div
-        class="stage-banner"
-        id="motusStageBanner"
-      >
-
-        <span id="motusStageText">
-          Idle
-        </span>
-
+      <div class="stage-banner" id="motusStageBanner">
+        <span id="motusStageText">Idle</span>
       </div>
-
-
-      <!-- =========================
-           STATS
-      ========================== -->
 
       <div class="stats">
-
         <div class="stat">
-
-          <div class="label">
-            AuthHist Rows
-          </div>
-
-          <div
-            class="value"
-            id="motusRegisterCount"
-          >
-            0
-          </div>
-
+          <div class="label">Register Entries</div>
+          <div class="value" id="motusRegisterCount">0</div>
         </div>
-
-
         <div class="stat">
-
-          <div class="label">
-            Checked
-          </div>
-
-          <div
-            class="value"
-            id="motusCheckedText"
-          >
-            0 / 0
-          </div>
-
+          <div class="label">Checked</div>
+          <div class="value" id="motusCheckedText">0 / 0</div>
         </div>
-
-
         <div class="stat good">
-
-          <div class="label">
-            Qualified
-          </div>
-
-          <div
-            class="value"
-            id="motusQualifiedCount"
-          >
-            0
-          </div>
-
+          <div class="label">Qualified</div>
+          <div class="value" id="motusQualifiedCount">0</div>
         </div>
-
-
         <div class="stat">
-
-          <div class="label">
-            Pending
-          </div>
-
-          <div
-            class="value"
-            id="motusPendingCount"
-          >
-            0
-          </div>
-
+          <div class="label">Pending</div>
+          <div class="value" id="motusPendingCount">0</div>
         </div>
-
-
         <div class="stat error-stat">
-
-          <div class="label">
-            Errors
-          </div>
-
-          <div
-            class="value"
-            id="motusErrorCount"
-          >
-            0
-          </div>
-
+          <div class="label">Errors</div>
+          <div class="value" id="motusErrorCount">0</div>
         </div>
-
       </div>
-
     </div>
 
-
-    <!-- =========================
-         LIVE LOG
-    ========================== -->
-
     <div class="d-card log-card">
-
       <div class="card-title-row">
-
-        <div class="card-title">
-          Live Log
-        </div>
-
+        <div class="card-title">Live Log</div>
       </div>
 
-
-      <div
-        class="log-scroll"
-        id="motusLogWrap"
-      >
-
-        <div
-          style="
-            padding:20px;
-            text-align:center;
-            color:#8993a1;
-            font-size:12px;
-          "
-        >
+      <div class="log-scroll" id="motusLogWrap">
+        <div style="padding:20px; text-align:center; color:#8993a1; font-size:12px;">
           No results yet — run a search above.
         </div>
-
       </div>
-
     </div>
 
   </div>
-
 </div>
-
 {% endblock %}
 
-
 {% block extra_script %}
-
 <script>
-
-/* =========================================================
-   MOTUS FRONTEND STATE
-========================================================= */
-
 let motusPolling = null;
 
-
-/* =========================================================
-   BADGE
-========================================================= */
-
 function motusBadge(entry) {
-
-  if (entry.fetch_error) {
-
-    return `
-      <span class="badge error">
-        Error
-      </span>
-    `;
-
-  }
-
-
-  if (entry.qualified) {
-
-    return `
-      <span class="badge fresh">
-        Qualified
-      </span>
-    `;
-
-  }
-
-
-  return `
-    <span class="badge neutral">
-      Pending
-    </span>
-  `;
+  if (entry.fetch_error) return '<span class="badge error">Error</span>';
+  if (entry.qualified) return '<span class="badge fresh">Qualified</span>';
+  return '<span class="badge neutral">Pending</span>';
 }
 
-
-/* =========================================================
-   RENDER LIVE LOG
-========================================================= */
-
 function motusRenderLog(rows) {
-
-  const wrap =
-    document.getElementById('motusLogWrap');
-
-
+  const wrap = document.getElementById('motusLogWrap');
   if (!rows || !rows.length) {
-
-    wrap.innerHTML = `
-      <div
-        style="
-          padding:20px;
-          text-align:center;
-          color:#8993a1;
-          font-size:12px;
-        "
-      >
-        No results yet — run a search above.
-      </div>
-    `;
-
+    wrap.innerHTML = '<div style="padding:20px; text-align:center; color:#8993a1; font-size:12px;">No results yet — run a search above.</div>';
     return;
   }
-
-
-  let html = `
-
-    <table>
-
-      <thead>
-
-        <tr>
-          <th>USDOT</th>
-          <th>Status</th>
-          <th>Entity</th>
-          <th>Authority</th>
-          <th>PU</th>
-          <th>City/State</th>
-          <th>Reason / Granted On</th>
-        </tr>
-
-      </thead>
-
-      <tbody>
-
-  `;
-
-
+  let html = `<table><thead><tr>
+    <th>USDOT</th><th>Status</th><th>Entity</th><th>Authority</th><th>PU</th><th>City/State</th><th>Note</th>
+  </tr></thead><tbody>`;
   for (const e of rows) {
-
-    const usdot =
-      e.mc_number || '—';
-
-    const entity =
-      e.entity_type || '—';
-
-    // Agar AuthHist ne carrier ko qualify kar diya hai lekin SAFER abhi
-    // bhi "Not Authorized" dikha raha hai (sync lag), to ye clarify karo
-    // ke ye lag hai, koi mismatch/bug nahi — AuthHist ka signal authoritative hai.
-    const rawAuthority = e.authority_status || '';
-    const looksNotAuthorized = /not\s*authorized/i.test(rawAuthority) || !rawAuthority;
-    const authority =
-      (e.qualified && looksNotAuthorized)
-        ? `${rawAuthority || 'Not yet on SAFER'} <span style="opacity:.65;font-size:10px;">(AuthHist confirms Granted)</span>`
-        : (rawAuthority || '—');
-
-    const powerUnits =
-      e.power_units ?? '—';
-
-    const location =
-      [e.city, e.state]
-        .filter(Boolean)
-        .join(', ') || '—';
-
-    // AuthHist entries (this page) carry motus_reason /
-    // motus_status_change_date, never motus_raw — motus_raw only
-    // exists on Register (PDF) entries from the other page. Reading
-    // motus_raw here always came back empty; show the AuthHist reason
-    // and the date authority was granted instead.
-    const note =
-      (e.motus_reason || e.motus_status_change_date)
-        ? [e.motus_reason, e.motus_status_change_date].filter(Boolean).join(' · ')
-        : '—';
-
-
-    html += `
-
-      <tr>
-
-        <td>
-          ${usdot}
-        </td>
-
-        <td>
-          ${motusBadge(e)}
-        </td>
-
-        <td>
-          ${entity}
-        </td>
-
-        <td>
-          ${authority}
-        </td>
-
-        <td>
-          ${powerUnits}
-        </td>
-
-        <td>
-          ${location}
-        </td>
-
-        <td>
-          ${note}
-        </td>
-
-      </tr>
-
-    `;
+    html += `<tr>
+      <td>${e.mc_number}</td>
+      <td>${motusBadge(e)}</td>
+      <td>${e.entity_type || '—'}</td>
+      <td>${e.authority_status || '—'}</td>
+      <td>${e.power_units ?? '—'}</td>
+      <td>${[e.city, e.state].filter(Boolean).join(', ') || '—'}</td>
+      <td>${e.motus_raw ? e.motus_raw.slice(0, 40) : '—'}</td>
+    </tr>`;
   }
-
-
-  html += `
-
-      </tbody>
-
-    </table>
-
-  `;
-
-
+  html += '</tbody></table>';
   wrap.innerHTML = html;
 }
 
-
-/* =========================================================
-   STAGE LABEL
-========================================================= */
-
 function motusStageLabel(data) {
-
-  if (data.fetch_error) {
-
-    return `Error: ${data.fetch_error}`;
-
-  }
-
-
-  if (data.stage === 'fetching') {
-
-    return 'Fetching Motus AuthHist Daily Difference…';
-
-  }
-
-
-  if (data.stage === 'checking') {
-
-    return `
-      Checking carriers…
-      (${data.current || 0}/${data.total || 0})
-    `;
-
-  }
-
-
-  if (data.stage === 'done') {
-
-    return 'Completed';
-
-  }
-
-
+  if (data.fetch_error) return `Error: ${data.fetch_error}`;
+  if (data.stage === 'fetching') return 'Fetching Motus Daily Register…';
+  if (data.stage === 'checking') return `Checking carriers… (${data.current}/${data.total})`;
+  if (data.stage === 'done') return 'Completed';
   return 'Idle';
 }
 
-
-/* =========================================================
-   START POLLING
-========================================================= */
-
-function startMotusPolling() {
-
-  /*
-    Clear an existing interval first.
-    This prevents multiple polling loops.
-  */
-
-  if (motusPolling) {
-
-    clearInterval(motusPolling);
-
-    motusPolling = null;
-  }
-
-
-  /*
-    Immediately fetch the latest data.
-  */
-
-  motusPoll();
-
-
-  /*
-    Continue fetching every 1.5 seconds.
-  */
-
-  motusPolling = setInterval(
-    motusPoll,
-    1500
-  );
-}
-
-
-/* =========================================================
-   STOP POLLING
-========================================================= */
-
-function stopMotusPolling() {
-
-  if (motusPolling) {
-
-    clearInterval(motusPolling);
-
-    motusPolling = null;
-  }
-}
-
-
-/* =========================================================
-   FETCH STATUS
-========================================================= */
-
 async function motusPoll() {
-
   try {
+    const res = await fetch('/api/motus/status', { cache: 'no-store' });
+    const data = await res.json();
 
-    const res = await fetch(
-      '/api/motus/status',
-      {
-        method: 'GET',
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
-      }
-    );
+    document.getElementById('motusRegisterCount').textContent = data.register_count || 0;
+    document.getElementById('motusCheckedText').textContent = `${data.current} / ${data.total}`;
+    document.getElementById('motusQualifiedCount').textContent = data.qualified_count || 0;
+    document.getElementById('motusPendingCount').textContent = data.pending_count || 0;
+    document.getElementById('motusErrorCount').textContent = data.error_count || 0;
 
-
-    if (!res.ok) {
-
-      throw new Error(
-        `HTTP ${res.status}`
-      );
-
-    }
-
-
-    const data =
-      await res.json();
-
-
-    /* =========================
-       UPDATE STATS
-    ========================== */
-
-    document
-      .getElementById('motusRegisterCount')
-      .textContent =
-        data.register_count || 0;
-
-
-    document
-      .getElementById('motusCheckedText')
-      .textContent =
-        `${data.current || 0} / ${data.total || 0}`;
-
-
-    document
-      .getElementById('motusQualifiedCount')
-      .textContent =
-        data.qualified_count || 0;
-
-
-    document
-      .getElementById('motusPendingCount')
-      .textContent =
-        data.pending_count || 0;
-
-
-    document
-      .getElementById('motusErrorCount')
-      .textContent =
-        data.error_count || 0;
-
-
-    /* =========================
-       STAGE BANNER
-    ========================== */
-
-    const banner =
-      document.getElementById(
-        'motusStageBanner'
-      );
-
-    const stageText =
-      document.getElementById(
-        'motusStageText'
-      );
-
-
-    if (
-      data.running ||
-      data.stage === 'done' ||
-      data.fetch_error
-    ) {
-
+    const banner = document.getElementById('motusStageBanner');
+    if (data.running || data.stage === 'done' || data.fetch_error) {
       banner.style.display = 'flex';
-
-      stageText.textContent =
-        motusStageLabel(data);
-
+      document.getElementById('motusStageText').textContent = motusStageLabel(data);
     } else {
-
       banner.style.display = 'none';
-
     }
 
+    motusRenderLog(data.recent_log || []);
 
-    /* =========================
-       UPDATE LOG
-    ========================== */
+    document.getElementById('motusStartBtn').disabled = data.running;
+    document.getElementById('motusStopBtn').disabled = !data.running;
 
-    motusRenderLog(
-      data.recent_log || []
-    );
-
-
-    /* =========================
-       BUTTON STATE
-    ========================== */
-
-    const startBtn =
-      document.getElementById(
-        'motusStartBtn'
-      );
-
-    const stopBtn =
-      document.getElementById(
-        'motusStopBtn'
-      );
-
-
-    startBtn.disabled =
-      !!data.running;
-
-    stopBtn.disabled =
-      !data.running;
-
-
-    /* =========================
-       SEARCH FINISHED
-    ========================== */
-
-    if (!data.running) {
-
-      /*
-        If search finished, stop polling.
-      */
-
-      stopMotusPolling();
-
+    if (data.running && !motusPolling) {
+      motusPolling = setInterval(motusPoll, 1500);
     }
-
+    if (!data.running && motusPolling) {
+      clearInterval(motusPolling);
+      motusPolling = null;
+    }
   } catch (err) {
-
-    console.error(
-      'Motus poll error:',
-      err
-    );
-
+    console.error('Motus poll error:', err);
   }
 }
-
-
-/* =========================================================
-   START MOTUS SEARCH
-========================================================= */
 
 async function motusStart() {
-
-  const from_date =
-    document.getElementById(
-      'motusFrom'
-    ).value;
-
-
-  const to_date =
-    document.getElementById(
-      'motusTo'
-    ).value;
-
-
-  const errorEl =
-    document.getElementById(
-      'motusErrorMsg'
-    );
-
-
-  /*
-    Hide previous error.
-  */
-
+  const from_date = document.getElementById('motusFrom').value;
+  const to_date = document.getElementById('motusTo').value;
+  const errorEl = document.getElementById('motusErrorMsg');
   errorEl.style.display = 'none';
-  errorEl.textContent = '';
-
-
-  /* =========================
-     VALIDATION
-  ========================== */
 
   if (!from_date || !to_date) {
-
-    errorEl.textContent =
-      'Please pick both a From and To date.';
-
+    errorEl.textContent = 'Please pick both a From and To date.';
     errorEl.style.display = 'block';
-
     return;
   }
 
+  const res = await fetch('/api/motus/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from_date, to_date }),
+  });
+  const data = await res.json();
 
-  const from =
-    new Date(from_date);
-
-
-  const to =
-    new Date(to_date);
-
-
-  /*
-    To date cannot be before From date.
-  */
-
-  if (to < from) {
-
-    errorEl.textContent =
-      'To Date cannot be earlier than From Date.';
-
+  if (data.error) {
+    errorEl.textContent = data.error;
     errorEl.style.display = 'block';
-
     return;
   }
 
-
-  /*
-    Maximum 8-day range.
-  */
-
-  const diffDays =
-    Math.floor(
-      (to - from) /
-      (1000 * 60 * 60 * 24)
-    ) + 1;
-
-
-  if (diffDays > 8) {
-
-    errorEl.textContent =
-      'Maximum date range is 8 days.';
-
-    errorEl.style.display = 'block';
-
-    return;
-  }
-
-
-  /* =========================
-     BUTTON STATE
-  ========================== */
-
-  document
-    .getElementById(
-      'motusStartBtn'
-    )
-    .disabled = true;
-
-
-  document
-    .getElementById(
-      'motusStopBtn'
-    )
-    .disabled = false;
-
-
-  try {
-
-    /*
-      Start backend Motus worker.
-    */
-
-    const res =
-      await fetch(
-        '/api/motus/start',
-        {
-          method: 'POST',
-
-          headers: {
-            'Content-Type':
-              'application/json',
-
-            'Cache-Control':
-              'no-cache'
-          },
-
-          body: JSON.stringify({
-            from_date: from_date,
-            to_date: to_date
-          })
-        }
-      );
-
-
-    const data =
-      await res.json();
-
-
-    /* =========================
-       BACKEND ERROR
-    ========================== */
-
-    if (!res.ok || data.error) {
-
-      errorEl.textContent =
-        data.error ||
-        'Unable to start Motus search.';
-
-      errorEl.style.display = 'block';
-
-
-      document
-        .getElementById(
-          'motusStartBtn'
-        )
-        .disabled = false;
-
-
-      document
-        .getElementById(
-          'motusStopBtn'
-        )
-        .disabled = true;
-
-
-      stopMotusPolling();
-
-      return;
-    }
-
-
-    /*
-      IMPORTANT:
-
-      Start polling immediately after
-      successful /api/motus/start.
-    */
-
-    startMotusPolling();
-
-  } catch (err) {
-
-    console.error(
-      'Motus start error:',
-      err
-    );
-
-
-    errorEl.textContent =
-      'Could not start Motus search. Please try again.';
-
-    errorEl.style.display =
-      'block';
-
-
-    document
-      .getElementById(
-        'motusStartBtn'
-      )
-      .disabled = false;
-
-
-    document
-      .getElementById(
-        'motusStopBtn'
-      )
-      .disabled = true;
-
-
-    stopMotusPolling();
-  }
+  document.getElementById('motusStartBtn').disabled = true;
+  document.getElementById('motusStopBtn').disabled = false;
+  motusPoll();
 }
-
-
-/* =========================================================
-   STOP MOTUS SEARCH
-========================================================= */
 
 async function motusStop() {
-
-  try {
-
-    await fetch(
-      '/api/motus/stop',
-      {
-        method: 'POST',
-        cache: 'no-store'
-      }
-    );
-
-  } catch (err) {
-
-    console.error(
-      'Motus stop error:',
-      err
-    );
-
-  }
-
-
-  /*
-    Stop frontend polling.
-  */
-
-  stopMotusPolling();
-
-
-  /*
-    Reset buttons.
-  */
-
-  document
-    .getElementById(
-      'motusStartBtn'
-    )
-    .disabled = false;
-
-
-  document
-    .getElementById(
-      'motusStopBtn'
-    )
-    .disabled = true;
-
-
-  /*
-    Get final backend state.
-  */
-
-  await motusPoll();
-
-
-  if (typeof showToast === 'function') {
-
-    showToast(
-      'Motus search stopped'
-    );
-
-  }
+  await fetch('/api/motus/stop', { method: 'POST' });
+  showToast('Motus search stopped');
 }
 
-
-/* =========================================================
-   PAGE INITIALIZATION
-========================================================= */
-
-async function initMotus() {
-
-  try {
-
-    /*
-      Get current state immediately.
-
-      This means if the user refreshes the page while
-      a Motus scan is already running, the UI catches up.
-    */
-
-    const res =
-      await fetch(
-        '/api/motus/status',
-        {
-          method: 'GET',
-          cache: 'no-store',
-          headers: {
-            'Cache-Control':
-              'no-cache',
-            'Pragma':
-              'no-cache'
-          }
-        }
-      );
-
-
-    if (!res.ok) {
-
-      throw new Error(
-        `HTTP ${res.status}`
-      );
-
-    }
-
-
-    const data =
-      await res.json();
-
-
-    /* =========================
-       INITIAL STATS
-    ========================== */
-
-    document
-      .getElementById(
-        'motusRegisterCount'
-      )
-      .textContent =
-        data.register_count || 0;
-
-
-    document
-      .getElementById(
-        'motusCheckedText'
-      )
-      .textContent =
-        `${data.current || 0} / ${data.total || 0}`;
-
-
-    document
-      .getElementById(
-        'motusQualifiedCount'
-      )
-      .textContent =
-        data.qualified_count || 0;
-
-
-    document
-      .getElementById(
-        'motusPendingCount'
-      )
-      .textContent =
-        data.pending_count || 0;
-
-
-    document
-      .getElementById(
-        'motusErrorCount'
-      )
-      .textContent =
-        data.error_count || 0;
-
-
-    /* =========================
-       INITIAL LOG
-    ========================== */
-
-    motusRenderLog(
-      data.recent_log || []
-    );
-
-
-    /* =========================
-       INITIAL STAGE
-    ========================== */
-
-    const banner =
-      document.getElementById(
-        'motusStageBanner'
-      );
-
-    const stageText =
-      document.getElementById(
-        'motusStageText'
-      );
-
-
-    if (
-      data.running ||
-      data.stage === 'done' ||
-      data.fetch_error
-    ) {
-
-      banner.style.display =
-        'flex';
-
-      stageText.textContent =
-        motusStageLabel(data);
-
-    }
-
-
-    /* =========================
-       RUNNING SCAN
-    ========================== */
-
-    if (data.running) {
-
-      document
-        .getElementById(
-          'motusStartBtn'
-        )
-        .disabled = true;
-
-
-      document
-        .getElementById(
-          'motusStopBtn'
-        )
-        .disabled = false;
-
-
-      /*
-        Resume polling automatically.
-      */
-
-      startMotusPolling();
-
-    } else {
-
-      document
-        .getElementById(
-          'motusStartBtn'
-        )
-        .disabled = false;
-
-
-      document
-        .getElementById(
-          'motusStopBtn'
-        )
-        .disabled = true;
-
-    }
-
-  } catch (err) {
-
-    console.error(
-      'Motus initialization error:',
-      err
-    );
-
-  }
-}
-
-
-/* =========================================================
-   RUN ON PAGE LOAD
-========================================================= */
-
-document.addEventListener(
-  'DOMContentLoaded',
-  function () {
-
-    initMotus();
-
-  }
-);
-
+motusPoll();
 </script>
-
 {% endblock %}
