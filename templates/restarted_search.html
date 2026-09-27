@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+
+{% block title %}Restarted Carriers{% endblock %}
+
+{% block extra_style %}
+<style>
+.dashboard { min-height: 100%; }
+.dashboard-body { padding: 24px 28px; }
+
+.scan-controls-restart {
+  display: grid;
+  grid-template-columns: 180px 1fr 84px 170px;
+  align-items: end;
+  gap: 10px;
+}
+.field { display: flex; flex-direction: column; gap: 7px; }
+.field label {
+  color: #293548; font-size: 10px; font-weight: 700; text-transform: uppercase;
+}
+html[data-theme="dark"] .field label { color: #c5ceda; }
+.field select, .field input {
+  width: 100%; height: 43px; padding: 0 13px;
+  border: 1px solid #dce2e9; border-radius: 9px; outline: none;
+  background: #fff; color: #172235; font-size: 13px;
+}
+html[data-theme="dark"] .field select, html[data-theme="dark"] .field input {
+  background: #111923; border-color: #303b49; color: #fff;
+}
+.field select:focus, .field input:focus {
+  border-color: var(--orange); box-shadow: 0 0 0 3px rgba(255,101,0,.09);
+}
+.d-btn {
+  height: 43px; border: 1px solid #dce2e9; border-radius: 9px;
+  background: #fff; color: #253044; font-size: 12px; font-weight: 700; white-space: nowrap;
+}
+html[data-theme="dark"] .d-btn { background: #18212d; color: #edf2f7; border-color: #303b49; }
+.d-btn-primary {
+  border-color: var(--orange); background: var(--orange); color: #fff;
+  box-shadow: 0 5px 12px rgba(255,101,0,.17);
+}
+.d-btn-primary:hover { background: var(--orange-dark); }
+.d-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+.d-card {
+  background: rgba(255,255,255,.97); border: 1px solid #e0e5ec;
+  border-radius: 15px; box-shadow: 0 7px 22px rgba(35,48,70,.055);
+  padding: 17px;
+}
+html[data-theme="dark"] .d-card {
+  background: rgba(20,27,37,.97); border-color: #293442; box-shadow: 0 10px 30px rgba(0,0,0,.22);
+}
+
+.range-hint {
+  margin-top: 8px; color: #8993a1; font-size: 11px;
+}
+
+.error-msg {
+  display: none; margin-top: 9px; padding: 8px 10px; border-radius: 7px;
+  background: #fff0eb; color: #c44c00; font-size: 11px;
+}
+
+.stage-banner {
+  display: none; align-items: center; gap: 10px; margin: 14px 0 0;
+  padding: 12px 15px; border-radius: 10px; border: 1px solid #dce2e9;
+  background: #fbfcfd; color: #3d495c; font-size: 12.5px;
+}
+html[data-theme="dark"] .stage-banner { background: #111923; border-color: #2b3542; color: #c7d0db; }
+
+.stats {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; margin-top: 16px;
+}
+.stat {
+  min-height: 66px; padding: 10px 11px; border: 1px solid #e0e5eb;
+  border-radius: 10px; background: #fbfcfd;
+}
+html[data-theme="dark"] .stat { background: #111923; border-color: #2b3542; }
+.stat .label { color: #697486; font-size: 9px; font-weight: 650; text-transform: uppercase; }
+html[data-theme="dark"] .stat .label { color: #929eae; }
+.stat .value { margin-top: 6px; color: #172235; font-size: 18px; font-weight: 750; }
+html[data-theme="dark"] .stat .value { color: #f1f4f8; }
+.stat.good .value { color: var(--fresh); }
+
+.log-card { margin-top: 15px; }
+.card-title-row { display: flex; align-items: center; justify-content: space-between; }
+.card-title { color: #172235; font-size: 15px; font-weight: 750; }
+html[data-theme="dark"] .card-title { color: #f1f4f8; }
+.log-scroll { max-height: 420px; margin-top: 15px; overflow: auto; }
+.log-scroll table { width: 100%; border-collapse: collapse; }
+.log-scroll th {
+  padding: 8px; color: #7a8494; border-bottom: 1px solid #e4e8ed;
+  font-size: 9px; text-align: left; text-transform: uppercase;
+}
+.log-scroll td { padding: 9px 8px; color: #3d495c; border-bottom: 1px solid #edf0f3; font-size: 11px; }
+html[data-theme="dark"] .log-scroll th, html[data-theme="dark"] .log-scroll td { border-color: #2b3542; }
+html[data-theme="dark"] .log-scroll td { color: #c7d0db; }
+
+.top-actions { display: flex; justify-content: flex-end; margin-bottom: 14px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+  <div class="dashboard-body">
+
+    <div class="top-actions">
+      <button class="d-btn" id="restartDownloadBtn" onclick="restartDownload()" disabled>
+        Download CSV
+      </button>
+    </div>
+
+    <div class="d-card">
+      <div class="scan-controls-restart">
+
+        <div class="field">
+          <label>Year</label>
+          <select id="restartYear"></select>
+        </div>
+
+        <div></div>
+
+        <button class="d-btn d-btn-primary" id="restartStartBtn" onclick="restartStart()">
+          Search
+        </button>
+
+        <button class="d-btn" id="restartStopBtn" onclick="restartStop()" disabled>
+          Stop
+        </button>
+
+      </div>
+
+      <div class="range-hint">
+        Pulls FMCSA AuthHist full history for the selected year and finds carriers whose authority
+        was paused (revoked / terminated / suspended) and later restarted (granted / reinstated).
+      </div>
+
+      <div class="error-msg" id="restartErrorMsg"></div>
+
+      <div class="stage-banner" id="restartStageBanner">
+        <span id="restartStageText">Idle</span>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="label">Source Rows</div>
+          <div class="value" id="restartSourceCount">0</div>
+        </div>
+        <div class="stat">
+          <div class="label">Processed</div>
+          <div class="value" id="restartCheckedText">0 / 0</div>
+        </div>
+        <div class="stat good">
+          <div class="label">Restarted Carriers</div>
+          <div class="value" id="restartResultCount">0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-card log-card">
+      <div class="card-title-row">
+        <div class="card-title">Results</div>
+      </div>
+
+      <div class="log-scroll" id="restartResultsWrap">
+        <div style="padding:20px; text-align:center; color:#8993a1; font-size:12px;">
+          No results yet — pick a year and run a search above.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_script %}
+<script>
+let restartPolling = null;
+
+function restartPopulateYears() {
+  const select = document.getElementById('restartYear');
+  const currentYear = new Date().getFullYear();
+  for (let y = currentYear; y >= 2015; y--) {
+    const opt = document.createElement('option');
+    opt.value = y;
+    opt.textContent = y;
+    select.appendChild(opt);
+  }
+  // Default to last year, since that's usually the fully-closed one.
+  select.value = currentYear - 1;
+}
+
+function restartRenderResults(rows) {
+  const wrap = document.getElementById('restartResultsWrap');
+  if (!rows || !rows.length) {
+    wrap.innerHTML = '<div style="padding:20px; text-align:center; color:#8993a1; font-size:12px;">No results yet — pick a year and run a search above.</div>';
+    return;
+  }
+  let html = `<table><thead><tr>
+    <th>MC Number</th><th>Paused Date</th><th>Restarted Date</th><th>PU</th><th>City/State</th>
+  </tr></thead><tbody>`;
+  for (const r of rows) {
+    html += `<tr>
+      <td>${r.mc_number || '—'}</td>
+      <td>${r.paused_date || '—'}</td>
+      <td>${r.restarted_date || '—'}</td>
+      <td>${r.power_units ?? 'N/A'}</td>
+      <td>${[r.city, r.state].filter(Boolean).join(', ') || 'N/A'}</td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+function restartStageLabel(data) {
+  if (data.fetch_error) return `Error: ${data.fetch_error}`;
+  if (data.stage === 'fetching') return `Fetching AuthHist history for ${data.year}…`;
+  if (data.stage === 'enriching') return `Enriching results… (${data.current}/${data.total})`;
+  if (data.stage === 'done') return 'Completed';
+  return 'Idle';
+}
+
+async function restartPoll() {
+  try {
+    const res = await fetch('/api/restarted/status', { cache: 'no-store' });
+    const data = await res.json();
+
+    document.getElementById('restartSourceCount').textContent = data.source_row_count || 0;
+    document.getElementById('restartCheckedText').textContent = `${data.current} / ${data.total}`;
+    document.getElementById('restartResultCount').textContent = data.result_count || 0;
+
+    const banner = document.getElementById('restartStageBanner');
+    if (data.running || data.stage === 'done' || data.fetch_error) {
+      banner.style.display = 'flex';
+      document.getElementById('restartStageText').textContent = restartStageLabel(data);
+    } else {
+      banner.style.display = 'none';
+    }
+
+    document.getElementById('restartStartBtn').disabled = data.running;
+    document.getElementById('restartStopBtn').disabled = !data.running;
+    document.getElementById('restartDownloadBtn').disabled = data.result_count === 0;
+
+    if (!data.running && (data.stage === 'done' || data.result_count > 0)) {
+      const resultsRes = await fetch('/api/restarted/results', { cache: 'no-store' });
+      restartRenderResults(await resultsRes.json());
+    }
+
+    if (data.running && !restartPolling) {
+      restartPolling = setInterval(restartPoll, 1500);
+    }
+    if (!data.running && restartPolling) {
+      clearInterval(restartPolling);
+      restartPolling = null;
+    }
+  } catch (err) {
+    console.error('Restart poll error:', err);
+  }
+}
+
+async function restartStart() {
+  const year = document.getElementById('restartYear').value;
+  const errorEl = document.getElementById('restartErrorMsg');
+  errorEl.style.display = 'none';
+
+  const res = await fetch('/api/restarted/start', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ year }),
+  });
+  const data = await res.json();
+
+  if (data.error) {
+    errorEl.textContent = data.error;
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  document.getElementById('restartStartBtn').disabled = true;
+  document.getElementById('restartStopBtn').disabled = false;
+  restartPoll();
+}
+
+async function restartStop() {
+  await fetch('/api/restarted/stop', { method: 'POST' });
+  showToast('Restart search stopped');
+}
+
+function restartDownload() {
+  window.location.href = '/api/restarted/download';
+}
+
+restartPopulateYears();
+restartPoll();
+</script>
+{% endblock %}
