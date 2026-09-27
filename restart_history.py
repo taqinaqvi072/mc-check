@@ -28,11 +28,14 @@ LATER row for that same docket STARTS again afterwards (orig_served_date
 after that end date). That later start is the "restart".
 
 Because this dataset holds decades of history and has no per-carrier
-category to narrow with, we fetch once (bounded by MIN_HISTORY_YEAR so we
-don't pull ancient 1980s records nobody needs) and do all grouping/
-restart-detection in Python, then filter the final results down to the
-requested year. This keeps the query itself simple/robust (no IN-clause
-batching needed) at the cost of a heavier one-time fetch.
+category to narrow with, we fetch the WHOLE dataset (paged) and do all
+grouping/restart-detection/year-filtering in Python. A server-side
+$where date filter was tried first but silently returned 0 rows every
+time — the date columns here don't appear to be a real Socrata date
+type, so a ">=" comparison against an ISO literal never matched. Once
+fetched, MIN_HISTORY_YEAR trims anything older than that (Python-side)
+before restart-detection runs, and the caller's requested year narrows
+the final output.
 """
 import requests
 
@@ -61,21 +64,45 @@ def _normalise(value):
     return str(value or "").strip().upper()
 
 
+import re
+
+_MDY_RE = re.compile(r"^(\d{1,2})/(\d{1,2})/(\d{4})$")
+
+
 def _clean_date(value):
+    """Format-flexible date normaliser -> 'YYYY-MM-DD' or ''. Handles ISO
+    timestamps/dates, compact YYYYMMDD, and MM/DD/YYYY (this dataset's
+    date columns turned out to be silently unfilterable via $where — a
+    strong sign they're stored as plain text rather than a real Socrata
+    date type, quite possibly in MM/DD/YYYY form)."""
     value = str(value or "").strip()
+    if not value:
+        return ""
     if "T" in value:
         return value.split("T")[0]
     if len(value) == 8 and value.isdigit():
         return f"{value[:4]}-{value[4:6]}-{value[6:8]}"
+    m = _MDY_RE.match(value)
+    if m:
+        month, day, year = m.groups()
+        return f"{year}-{int(month):02d}-{int(day):02d}"
+    if len(value) == 10 and value[4] == "-":
+        return value  # already YYYY-MM-DD
     return value
 
 
 def fetch_authhist_history_rows():
-    """Pages through every AuthHist "All With History" row with
-    orig_served_date on/after MIN_HISTORY_YEAR. Returns the raw Socrata
-    rows (list of dicts) — NOT yet grouped or restart-detected."""
-    where = f"orig_served_date >= '{MIN_HISTORY_YEAR}-01-01T00:00:00'"
+    """Pages through the ENTIRE AuthHist "All With History" dataset.
 
+    NOTE: an earlier version tried to filter server-side with
+    "$where orig_served_date >= '...'" — that silently returned 0 rows
+    every time, with no error. The likely cause: this column isn't a real
+    Socrata date/timestamp type, so ">=" was doing a plain STRING
+    comparison against our ISO-format literal, which never matches a
+    MM/DD/YYYY-formatted value. Filtering by year is therefore done in
+    Python (see fetch_and_parse_restarts) after normalising every row's
+    dates with _clean_date() above, which understands both formats.
+    """
     all_rows = []
     offset = 0
     page_num = 0
@@ -83,8 +110,7 @@ def fetch_authhist_history_rows():
         params = {
             "$limit": PAGE_LIMIT,
             "$offset": offset,
-            "$where": where,
-            "$order": "dot_number ASC, docket_number ASC, orig_served_date ASC",
+            "$order": "dot_number ASC, docket_number ASC",
         }
         response = requests.get(AUTHHIST_HISTORY_API, params=params, timeout=REQUEST_TIMEOUT)
 
@@ -108,7 +134,7 @@ def fetch_authhist_history_rows():
         offset += PAGE_LIMIT
         page_num += 1
 
-    print(f"[restart_history] Total rows fetched (>= {MIN_HISTORY_YEAR}): {len(all_rows)}")
+    print(f"[restart_history] Total rows fetched: {len(all_rows)}")
     return all_rows
 
 
@@ -202,9 +228,8 @@ def dedupe_restarts(rows):
 
 def fetch_and_parse_restarts(year):
     """Public entry point: fetches the full AuthHist All-With-History
-    dataset (from MIN_HISTORY_YEAR onward), detects every restart across
-    all history, then filters down to restarts whose restarted_date falls
-    in `year`.
+    dataset, detects every restart across all history, then filters down
+    to restarts whose restarted_date falls in `year`.
 
     Returns (restart_rows, source_row_count). Each restart row has:
     usdot, docket, paused_date, paused_reason, restarted_date,
@@ -213,6 +238,11 @@ def fetch_and_parse_restarts(year):
     print(f"[restart_history] Fetching full AuthHist history (target year: {year})")
     raw_rows = fetch_authhist_history_rows()
     normalised = [_normalise_row(r) for r in raw_rows]
+    # Drop records older than MIN_HISTORY_YEAR here (in Python, since the
+    # server-side $where filter on this field doesn't work — see the note
+    # in fetch_authhist_history_rows above).
+    normalised = [r for r in normalised if r["orig_served_date"][:4].isdigit()
+                  and int(r["orig_served_date"][:4]) >= MIN_HISTORY_YEAR]
     grouped = group_by_docket(normalised)
     all_restarts = detect_restarts(grouped)
     deduped = dedupe_restarts(all_restarts)
