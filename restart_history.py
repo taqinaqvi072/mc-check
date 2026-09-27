@@ -58,13 +58,12 @@ Fix: only fetch what's needed for the requested period.
   reinstatement was preceded by a real prior disposition (i.e. is
   actually a restart, not a brand-new carrier's first authority).
 
-MONTH SCOPING: fetch_and_parse_restarts(year, month=None) now accepts an
-optional `month` (1-12). When given, Phase 1 is narrowed to just that
-month (e.g. "03/%/2023" instead of "%/2023"), and the final year filter
-also checks the month. This cuts the candidate set (and therefore Phase
-2's docket count and total fetch time) by roughly a factor of 12 compared
-to a full-year search, since FMCSA issues tens of thousands of
-grant/reinstatement actions per year across all carriers.
+MONTH SCOPING (mandatory): fetch_and_parse_restarts(year, month) requires
+a `month` (1-12) — full-year searches are no longer supported, since a
+full-year candidate set (and the resulting Phase 2 docket count) was
+still large enough to make a search slow. Phase 1 is always narrowed to
+the given month (e.g. "03/%/2023"), and the final filter checks both
+year and month.
 
 Also carried over from the previous bugfix pass:
   - "DISCONTINUED REVOCATION" is in DISPOSITION_EXCLUDE_KEYWORDS — it
