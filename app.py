@@ -51,6 +51,13 @@ The normal MC-range scanner and the Motus Register (PDF) flow are NOT
 affected by this -- they still require SAFER's authority_status to say
 Authorized, since those carriers have not already been confirmed
 Active+Granted by AuthHist.
+
+RESTARTED CARRIERS (AuthHist All-With-History): a separate historical
+feature (see restart_history.py) — lets a user pick a past year and
+find carriers whose authority was paused (revoked/terminated/suspended)
+and later restarted (granted/reinstated) in that year. Unlike the Motus
+feed above, this reads FMCSA's full-history AuthHist dataset rather
+than the daily-difference one, so years like 2023/2024 are queryable.
 """
 import concurrent.futures
 import csv
@@ -65,6 +72,7 @@ import uuid
 from datetime import datetime, timedelta
 import motus as motus_mod
 import motus_register as motus_register_mod
+import restart_history as restart_history_mod
 import requests
 from bs4 import BeautifulSoup
 from flask import Flask, jsonify, redirect, render_template, request, send_file, session, url_for
@@ -336,6 +344,9 @@ motus_jobs = {}
 motus_register_jobs_lock = threading.Lock()
 motus_register_jobs = {}
 
+restart_jobs_lock = threading.Lock()
+restart_jobs = {}
+
 MOTUS_DEFAULT_CATEGORIES = [
     "MOTOR CARRIER OF PROPERTY",
     "MOTOR CARRIER OF PASSENGERS",
@@ -382,6 +393,22 @@ def new_motus_register_job_state():
     }
 
 
+def new_restart_job_state():
+    return {
+        "running": False,
+        "stage": "idle",
+        "current": 0,
+        "total": 0,
+        "results": [],
+        "start_time": None,
+        "finished_time": None,
+        "stop_requested": False,
+        "year": None,
+        "source_row_count": 0,
+        "fetch_error": None,
+    }
+
+
 def get_or_create_motus_job_id():
     job_id = session.get("motus_job_id")
 
@@ -401,6 +428,16 @@ def get_or_create_motus_register_job_id():
             job_id = str(uuid.uuid4())
             motus_register_jobs[job_id] = new_motus_register_job_state()
             session["motus_register_job_id"] = job_id
+    return job_id
+
+
+def get_or_create_restart_job_id():
+    job_id = session.get("restart_job_id")
+    with restart_jobs_lock:
+        if not job_id or job_id not in restart_jobs:
+            job_id = str(uuid.uuid4())
+            restart_jobs[job_id] = new_restart_job_state()
+            session["restart_job_id"] = job_id
     return job_id
 
 
@@ -614,6 +651,86 @@ def motus_register_worker(job_id, username, from_date, to_date):
 
     with motus_register_jobs_lock:
         st = motus_register_jobs.get(job_id)
+        if st:
+            st["running"] = False
+            st["stage"] = "stopped" if st.get("stop_requested") else "done"
+            st["finished_time"] = time.time()
+
+
+def restart_worker(job_id, username, year):
+    """Fetches FMCSA AuthHist "All With History" for `year` and detects
+    carriers whose authority was paused then later restarted. Unlike the
+    scanners above, this does NOT re-check each MC against SAFER by
+    default — it just reports what AuthHist itself says (MC number +
+    pause date + restart date), since that's the client's requirement.
+    If the MC already exists in this user's saved/qualified data, we
+    attach power_units/cargo for free (no extra FMCSA request)."""
+    with restart_jobs_lock:
+        st = restart_jobs.get(job_id)
+        if st is None:
+            return
+        st.update({
+            "running": True,
+            "stage": "fetching",
+            "current": 0,
+            "total": 0,
+            "results": [],
+            "start_time": time.time(),
+            "finished_time": None,
+            "stop_requested": False,
+            "year": year,
+            "source_row_count": 0,
+            "fetch_error": None,
+        })
+
+    try:
+        restart_rows, source_row_count = restart_history_mod.fetch_and_parse_restarts(year)
+    except Exception as e:
+        with restart_jobs_lock:
+            st = restart_jobs.get(job_id)
+            if st:
+                st["running"] = False
+                st["stage"] = "error"
+                st["fetch_error"] = f"Could not fetch AuthHist history: {e}"
+                st["finished_time"] = time.time()
+        return
+
+    with restart_jobs_lock:
+        st = restart_jobs.get(job_id)
+        if st is None:
+            return
+        st["stage"] = "enriching"
+        st["total"] = len(restart_rows)
+        st["source_row_count"] = source_row_count
+
+    enriched = []
+    for row in restart_rows:
+        with restart_jobs_lock:
+            if restart_jobs.get(job_id, {}).get("stop_requested"):
+                break
+
+        entry = dict(row)
+        entry["mc_number"] = row["docket"] or row["usdot"]
+
+        # Free enrichment: if this MC is already saved by the user, pull
+        # power_units/cargo from there instead of hitting SAFER again.
+        saved = db.get_saved_one(username, entry["mc_number"]) if entry["mc_number"] else None
+        entry["power_units"] = saved.get("power_units") if saved else None
+        entry["cargo_carried"] = saved.get("cargo_carried", "") if saved else ""
+        entry["city"] = saved.get("city", "") if saved else ""
+        entry["state"] = saved.get("state", "") if saved else ""
+
+        enriched.append(entry)
+
+        with restart_jobs_lock:
+            st = restart_jobs.get(job_id)
+            if st is None:
+                break
+            st["current"] += 1
+            st["results"] = enriched
+
+    with restart_jobs_lock:
+        st = restart_jobs.get(job_id)
         if st:
             st["running"] = False
             st["stage"] = "stopped" if st.get("stop_requested") else "done"
@@ -1632,6 +1749,86 @@ def motus_register_download():
     return _csv_response(rows, "motus_register_qualified_carriers.csv")
 
 
+@app.route("/restarted-search")
+@login_required
+def restarted_search_page():
+    get_or_create_restart_job_id()
+    return render_template("restarted_search.html", **base_ctx())
+
+
+@app.route("/api/restarted/start", methods=["POST"])
+@login_required
+def restarted_start():
+    job_id = get_or_create_restart_job_id()
+    with restart_jobs_lock:
+        if restart_jobs[job_id]["running"]:
+            return jsonify({"error": "A restart search is already running"}), 400
+
+    data = request.get_json(force=True)
+    year = data.get("year")
+
+    try:
+        year = int(year)
+    except (TypeError, ValueError):
+        return jsonify({"error": "A valid year is required"}), 400
+
+    if year < 2015 or year > datetime.now().year:
+        return jsonify({"error": f"Year must be between 2015 and {datetime.now().year}"}), 400
+
+    username = session["username"]
+    t = threading.Thread(
+        target=restart_worker,
+        args=(job_id, username, year),
+        daemon=True,
+    )
+    t.start()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/restarted/stop", methods=["POST"])
+@login_required
+def restarted_stop():
+    job_id = get_or_create_restart_job_id()
+    with restart_jobs_lock:
+        restart_jobs[job_id]["stop_requested"] = True
+    return jsonify({"ok": True})
+
+
+@app.route("/api/restarted/status")
+@login_required
+def restarted_status():
+    job_id = get_or_create_restart_job_id()
+    with restart_jobs_lock:
+        st = restart_jobs[job_id]
+        return jsonify({
+            "running": st["running"],
+            "stage": st["stage"],
+            "current": st["current"],
+            "total": st["total"],
+            "source_row_count": st["source_row_count"],
+            "result_count": len(st["results"]),
+            "year": st["year"],
+            "fetch_error": st["fetch_error"],
+        })
+
+
+@app.route("/api/restarted/results")
+@login_required
+def restarted_results():
+    job_id = get_or_create_restart_job_id()
+    with restart_jobs_lock:
+        return jsonify(restart_jobs[job_id]["results"])
+
+
+@app.route("/api/restarted/download")
+@login_required
+def restarted_download():
+    job_id = get_or_create_restart_job_id()
+    with restart_jobs_lock:
+        rows = list(restart_jobs[job_id]["results"])
+    return _csv_response(rows, "restarted_carriers.csv")
+
+
 @app.route("/qualified")
 @login_required
 def qualified_page():
@@ -1857,6 +2054,8 @@ def _csv_response(rows, filename):
         "motus_docket", "motus_category", "motus_status",
         "motus_reason", "motus_status_change_date",
         "motus_authority_date",
+        # Restarted-carrier fields — ignored for other CSV rows.
+        "paused_date", "paused_reason", "restarted_date", "restarted_reason",
     ]
     writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction="ignore")
     writer.writeheader()
