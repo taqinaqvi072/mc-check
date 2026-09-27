@@ -78,6 +78,7 @@ from datetime import datetime, timedelta
 import motus as motus_mod
 import motus_register as motus_register_mod
 import restart_history as restart_history_mod
+import qcmobile as qcmobile_mod
 import requests
 from bs4 import BeautifulSoup
 from flask import Flask, jsonify, redirect, render_template, request, send_file, session, url_for
