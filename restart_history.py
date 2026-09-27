@@ -4,9 +4,8 @@ Source: FMCSA "AuthHist - All With History" dataset on Socrata
 (https://catalog.data.gov/dataset/authhist-all-with-history), dataset id
 9mw4-x3tu.
 
-CONFIRMED SCHEMA (from a live 400-error response, since Socrata echoes the
-resolved column list, and re-confirmed against a live sample fetch): this
-dataset has ONLY these columns —
+CONFIRMED SCHEMA (from a live 400-error response, and re-confirmed against
+a live sample fetch): this dataset has ONLY these columns —
 
     docket_number, dot_number, sub_number, mod_col_1,
     original_action_desc, orig_served_date,
@@ -23,62 +22,74 @@ for one docket, carrying both:
 There is no carrier-type/category column on this dataset, so category
 filtering (Property/Passengers) is NOT possible here.
 
-Dates come back from Socrata as plain "MM/DD/YYYY" strings (no time
-component) — confirmed against a live sample fetch — which is why a
-server-side "$where date >= '...'" filter never matched (see below);
-_clean_date() below normalises this (and a couple of other formats) to
-"YYYY-MM-DD" so grouping/sorting/year-filtering work correctly.
+Dates come back from Socrata as plain "MM/DD/YYYY" strings (confirmed via
+a live sample fetch — no time component), which is why a server-side
+"$where date >= '...'" filter never matched a normal date column: these
+columns aren't a real Socrata date type, so ">=" was doing a plain STRING
+comparison against an ISO literal that never matches MM/DD/YYYY. That
+said, plain-text "like" filtering DOES work against these columns (see
+Phase 1 below), which is what makes the targeted-fetch approach possible.
 
 RESTART DEFINITION: for the same (dot_number, docket_number), one row's
 authority record ENDS (has a disp_decided_date/disp_served_date), and a
 LATER row for that same docket STARTS again afterwards (orig_served_date
 after that end date). That later start is the "restart".
 
-Because this dataset holds decades of history and has no per-carrier
-category to narrow with, we fetch the WHOLE dataset (paged) and do all
-grouping/restart-detection/year-filtering in Python. A server-side
-$where date filter was tried first but silently returned 0 rows every
-time — the date columns here don't appear to be a real Socrata date
-type, so a ">=" comparison against an ISO literal never matched. Once
-fetched, MIN_HISTORY_YEAR trims anything with no date at all in-range
-(see _row_relevant_year() below) before restart-detection runs, and the
-caller's requested year narrows the final output.
-
 --------------------------------------------------------------------------
-FIXES APPLIED (2026-09-27), after pulling a live sample from the dataset
-and tracing real dockets (e.g. MC124003 / DOT 00012312) through the
-restart-detection logic by hand:
+REWRITE (2026-09-27): two-phase targeted fetch instead of a full dump.
 
-1. The MIN_HISTORY_YEAR trim used to drop rows by orig_served_date only.
-   That silently discarded rows where an OLD authority (granted well
-   before MIN_HISTORY_YEAR) was REVOKED recently (e.g. granted 1996,
-   revoked 2023) — exactly the rows needed to detect a same-year restart.
-   Fixed by keeping a row if EITHER its orig_served_date OR its
-   disposition date falls within range (see _row_relevant_year()).
-   Blank orig_served_date rows (which used to be dropped outright because
-   "".isdigit() is False) are also now correctly kept when they carry a
-   relevant disposition date.
+The previous version fetched the ENTIRE dataset (paged, 50k rows/page)
+into memory before doing anything else. This dataset covers ~90 years of
+FMCSA authority history across every carrier that has ever existed —
+easily several million rows. On a small server that meant:
+  - the whole thing being held in memory at once (raw JSON + normalised
+    copies) was enough to exhaust available RAM, and
+  - the host would then OOM-kill and restart the process mid-fetch.
+That matches what was observed: a burst of 502s from the app itself
+going down, then a return to 200 once the container restarted — but with
+the in-memory job state (restart_jobs dict) wiped, so the UI showed 0
+results even though the search had "completed" from the browser's POV.
 
-2. "DISCONTINUED REVOCATION" was being treated as a genuine
-   authority-ending disposition (it wasn't in
-   DISPOSITION_EXCLUDE_KEYWORDS). It shouldn't be: it means an
-   involuntary-revocation NOTICE was issued and then withdrawn/cancelled
-   — the carrier's authority never actually stopped. Treating it as a
-   real end corrupts the pending "paused" record with a bogus date/reason
-   and can cause a genuine restart to be matched against (or reset by)
-   the wrong event. Added to DISPOSITION_EXCLUDE_KEYWORDS.
+Fix: don't fetch the whole dataset. We only ever care about carriers that
+had a NEW authority action (GRANT/REINSTATE) in the requested year, so:
 
-KNOWN REMAINING SIMPLIFICATION (not fixed here, flagging for later):
-grouping is still by (dot_number, docket_number) only, ignoring
-sub_number/mod_col_1. Distinct authority "categories" under the same
-docket (e.g. COMMON vs CONTRACT vs BROKER) get treated as one continuous
-chronological chain. FMCSA's own category labels for the same docket are
-inconsistent across decades (e.g. "MOTOR PROPERTY COMMON CARRIER" vs
-plain "COMMON"), so splitting groups by mod_col_1 as-is would likely
-create MORE false splits than it fixes. Leaving this alone until we have
-a reliable way to normalise mod_col_1 across eras.
+  Phase 1 — fetch ONLY rows where original_action_desc looks like a
+  grant/reinstatement AND orig_served_date's year matches the requested
+  year (both filtered server-side via SoQL `like`, since these are plain
+  text columns and year is reliably the last 4 characters of a fixed
+  "MM/DD/YYYY" string). This is a small, fast query — a subset of a
+  single year's filings, not 90 years of history.
+
+  Phase 2 — take the distinct docket_numbers from Phase 1 and fetch each
+  one's FULL history (batched via `docket_number in (...)`, chunks of
+  ~100 at a time) so we have enough context to tell whether that grant/
+  reinstatement was preceded by a real prior disposition (i.e. is
+  actually a restart, not a brand-new carrier's first authority).
+
+This keeps memory bounded to "one year's worth of candidates plus their
+full docket histories" instead of "every authority record FMCSA has ever
+issued", regardless of which year is queried.
+
+Also carried over from the previous bugfix pass:
+  - "DISCONTINUED REVOCATION" is added to DISPOSITION_EXCLUDE_KEYWORDS —
+    it means a revocation NOTICE was cancelled/withdrawn, i.e. the
+    authority never actually stopped, so it must not be treated as a real
+    "pause" end date (it used to corrupt the pending-pause tracking).
+
+KNOWN REMAINING SIMPLIFICATION: grouping is still by
+(dot_number, docket_number) only, ignoring sub_number/mod_col_1. Distinct
+authority "categories" under the same docket (e.g. COMMON vs CONTRACT vs
+BROKER) get treated as one continuous chronological chain. FMCSA's own
+category labels for the same docket are inconsistent across decades
+(e.g. "MOTOR PROPERTY COMMON CARRIER" vs plain "COMMON"), so splitting
+groups by mod_col_1 as-is would likely create MORE false splits than it
+fixes. Leaving this alone until there's a reliable way to normalise
+mod_col_1 across eras.
 --------------------------------------------------------------------------
 """
+import re
+import time
+
 import requests
 
 AUTHHIST_HISTORY_API = "https://data.transportation.gov/resource/9mw4-x3tu.json"
@@ -86,12 +97,23 @@ AUTHHIST_HISTORY_API = "https://data.transportation.gov/resource/9mw4-x3tu.json"
 REQUEST_TIMEOUT = 30
 PAGE_LIMIT = 50000  # Socrata max per page; paged with $offset
 
-# Don't bother pulling authority records with NO date at all in-range —
-# restarts from decades ago aren't useful, and it keeps the one-time fetch
-# smaller. NOTE: a row is kept if ANY of its dates (orig OR disposition)
-# is >= this year — see _row_relevant_year(). Do not filter on
-# orig_served_date alone; see fix #1 in the module docstring above.
-MIN_HISTORY_YEAR = 2010
+# How many docket_numbers to pack into one Phase-2 "in (...)" query.
+# Keeps the $where clause a reasonable length and each response a
+# manageable size (each docket typically has anywhere from a handful to
+# a few hundred historical rows).
+DOCKET_BATCH_SIZE = 100
+
+# Small pause between paginated/batched requests — there's no Socrata
+# app token configured here, so unauthenticated requests are subject to
+# tighter throttling; this keeps us polite and reduces 429s.
+REQUEST_PACING_SECONDS = 0.2
+
+# Retry policy for transient errors (429/5xx/network) — no app token
+# means we're more likely to get throttled occasionally; a few retries
+# with backoff is cheap insurance against a whole search failing on one
+# blip.
+MAX_RETRIES = 4
+RETRY_BACKOFF_BASE_SECONDS = 2
 
 # Keywords marking a disposition as the authority genuinely ending (as
 # opposed to e.g. a clerical/administrative disposition that isn't really
@@ -102,33 +124,35 @@ MIN_HISTORY_YEAR = 2010
 DISPOSITION_EXCLUDE_KEYWORDS = [
     "DISMISS",
     "WITHDRAWN BY APPLICANT PRE-GRANT",
-    # Fix #2: this means the revocation NOTICE was cancelled/withdrawn —
-    # the authority never actually stopped, so it must not be treated as
-    # a real "pause" end date.
+    # This means the revocation NOTICE was cancelled/withdrawn — the
+    # authority never actually stopped, so it must not be treated as a
+    # real "pause" end date.
     "DISCONTINUED REVOCATION",
 ]
 
 # Keywords marking a later record's start as a genuine (re)start, as
-# opposed to some other administrative original-action type.
+# opposed to some other administrative original-action type. Also used
+# (as a SoQL `like '%...%'` filter) to build the Phase-1 candidate query.
 RESTART_KEYWORDS = ["GRANT", "REINSTAT"]
+
+_MDY_RE = re.compile(r"^(\d{1,2})/(\d{1,2})/(\d{4})$")
 
 
 def _normalise(value):
     return str(value or "").strip().upper()
 
 
-import re
-
-_MDY_RE = re.compile(r"^(\d{1,2})/(\d{1,2})/(\d{4})$")
+def _soql_escape(value):
+    """Escapes a value for safe interpolation inside a SoQL string
+    literal ('...'): SoQL uses '' to escape a literal single quote."""
+    return str(value).replace("'", "''")
 
 
 def _clean_date(value):
     """Format-flexible date normaliser -> 'YYYY-MM-DD' or ''. Handles ISO
-    timestamps/dates, compact YYYYMMDD, and MM/DD/YYYY (this dataset's
-    date columns turned out to be silently unfilterable via $where — a
-    strong sign they're stored as plain text rather than a real Socrata
-    date type; confirmed via a live sample fetch to be plain
-    'MM/DD/YYYY' with no time component)."""
+    timestamps/dates, compact YYYYMMDD, and MM/DD/YYYY (confirmed via a
+    live sample fetch to be this dataset's actual format — plain text,
+    no time component)."""
     value = str(value or "").strip()
     if not value:
         return ""
@@ -145,18 +169,40 @@ def _clean_date(value):
     return value
 
 
-def fetch_authhist_history_rows():
-    """Pages through the ENTIRE AuthHist "All With History" dataset.
+def _get_with_retries(params):
+    """GET against the AuthHist endpoint with retry/backoff on
+    throttling or transient server errors. Raises ValueError on a
+    non-retryable error or once retries are exhausted."""
+    last_error = None
+    for attempt in range(MAX_RETRIES + 1):
+        try:
+            response = requests.get(AUTHHIST_HISTORY_API, params=params, timeout=REQUEST_TIMEOUT)
+        except requests.RequestException as e:
+            last_error = f"network error: {e}"
+        else:
+            if response.status_code < 400:
+                return response.json()
+            if response.status_code in (429, 500, 502, 503, 504):
+                last_error = f"{response.status_code}: {response.text[:200]}"
+            else:
+                raise ValueError(
+                    f"AuthHist API returned {response.status_code}: {response.text[:500]}"
+                )
 
-    NOTE: an earlier version tried to filter server-side with
-    "$where orig_served_date >= '...'" — that silently returned 0 rows
-    every time, with no error. The likely cause: this column isn't a real
-    Socrata date/timestamp type, so ">=" was doing a plain STRING
-    comparison against our ISO-format literal, which never matches a
-    MM/DD/YYYY-formatted value. Filtering by year is therefore done in
-    Python (see fetch_and_parse_restarts) after normalising every row's
-    dates with _clean_date() above, which understands both formats.
-    """
+        if attempt < MAX_RETRIES:
+            wait = RETRY_BACKOFF_BASE_SECONDS * (2 ** attempt)
+            print(f"[restart_history] Request failed ({last_error}); retrying in {wait}s "
+                  f"(attempt {attempt + 1}/{MAX_RETRIES})")
+            time.sleep(wait)
+
+    raise ValueError(f"AuthHist API request failed after {MAX_RETRIES} retries: {last_error}")
+
+
+def _fetch_all_pages(where_clause):
+    """Pages through every row matching `where_clause` (a SoQL $where
+    string). Used for both the Phase-1 candidate query and each Phase-2
+    docket-history batch — both are expected to return far fewer rows
+    than the full dataset, so this stays bounded in memory."""
     all_rows = []
     offset = 0
     page_num = 0
@@ -164,31 +210,64 @@ def fetch_authhist_history_rows():
         params = {
             "$limit": PAGE_LIMIT,
             "$offset": offset,
+            "$where": where_clause,
             "$order": "dot_number ASC, docket_number ASC",
         }
-        response = requests.get(AUTHHIST_HISTORY_API, params=params, timeout=REQUEST_TIMEOUT)
-
-        if response.status_code >= 400:
-            raise ValueError(
-                f"AuthHist All-With-History API returned {response.status_code}: {response.text[:500]}"
-            )
-
-        page_rows = response.json()
+        page_rows = _get_with_retries(params)
         if not isinstance(page_rows, list):
             raise ValueError(f"Unexpected AuthHist response type: {type(page_rows).__name__}")
 
-        if page_num == 0 and page_rows:
-            print(f"[restart_history] Sample raw row: {page_rows[0]}")
-
         all_rows.extend(page_rows)
-        print(f"[restart_history] Page {page_num}: {len(page_rows)} rows (offset {offset})")
 
         if len(page_rows) < PAGE_LIMIT:
             break  # last page
         offset += PAGE_LIMIT
         page_num += 1
+        time.sleep(REQUEST_PACING_SECONDS)
 
-    print(f"[restart_history] Total rows fetched: {len(all_rows)}")
+    return all_rows
+
+
+def fetch_candidate_restart_rows(year):
+    """Phase 1: fetch only rows that look like a grant/reinstatement
+    served in `year`. Both conditions are filtered server-side — these
+    are plain text columns, so we use `like`, matching the same
+    contains-style logic as _is_restart_start() below (not a strict
+    prefix match), and a `%/{year}` suffix match on orig_served_date
+    (reliable since the format is a fixed-width 'MM/DD/YYYY')."""
+    keyword_clauses = " OR ".join(
+        f"upper(original_action_desc) like '%{_soql_escape(kw)}%'"
+        for kw in RESTART_KEYWORDS
+    )
+    where_clause = f"({keyword_clauses}) AND orig_served_date like '%/{int(year)}'"
+    print(f"[restart_history] Phase 1: fetching {year} grant/reinstatement candidates")
+    rows = _fetch_all_pages(where_clause)
+    print(f"[restart_history] Phase 1: {len(rows)} candidate rows")
+    return rows
+
+
+def fetch_docket_histories(docket_numbers):
+    """Phase 2: fetch the FULL history (every row, any year) for each
+    docket_number in `docket_numbers`, batched to keep each query and
+    response a manageable size."""
+    docket_numbers = sorted(set(d for d in docket_numbers if d))
+    if not docket_numbers:
+        return []
+
+    all_rows = []
+    total_batches = (len(docket_numbers) + DOCKET_BATCH_SIZE - 1) // DOCKET_BATCH_SIZE
+    print(f"[restart_history] Phase 2: fetching full history for {len(docket_numbers)} "
+          f"dockets in {total_batches} batch(es)")
+
+    for i in range(0, len(docket_numbers), DOCKET_BATCH_SIZE):
+        batch = docket_numbers[i:i + DOCKET_BATCH_SIZE]
+        quoted = ",".join(f"'{_soql_escape(d)}'" for d in batch)
+        where_clause = f"docket_number in ({quoted})"
+        batch_rows = _fetch_all_pages(where_clause)
+        all_rows.extend(batch_rows)
+        time.sleep(REQUEST_PACING_SECONDS)
+
+    print(f"[restart_history] Phase 2: {len(all_rows)} history rows fetched")
     return all_rows
 
 
@@ -210,27 +289,6 @@ def _end_date(row):
     """A row's authority-ended date: disp_decided_date, falling back to
     disp_served_date when the former is blank."""
     return row["disp_decided_date"] or row["disp_served_date"]
-
-
-def _row_relevant_year(row):
-    """Returns the row's most relevant year for the MIN_HISTORY_YEAR trim,
-    or None if the row has no usable date at all.
-
-    FIX #1: previously this trim looked only at orig_served_date, which
-    silently dropped rows where an OLD authority (granted long before
-    MIN_HISTORY_YEAR) was revoked/disposed RECENTLY — exactly the rows
-    needed to detect a same-year restart (e.g. granted 1996, revoked
-    2023, reinstated 2023: the 1996 row's disposition IS the 2023 pause).
-    We now keep a row if ANY of its dates — orig OR disposition — is
-    within range, and only drop a row when NONE of its dates qualify (or
-    it has no dates at all).
-    """
-    end_date = _end_date(row)
-    for date_str in (end_date, row["orig_served_date"]):
-        year_str = date_str[:4]
-        if year_str.isdigit():
-            return int(year_str)
-    return None
 
 
 def _is_real_disposition(row):
@@ -255,8 +313,8 @@ def group_by_docket(rows):
     That's harmless for restart-detection here since such rows only ever
     matter via their disposition date (see _is_real_disposition), not
     their position as a "restart start" — a blank-orig row can still
-    become `pending_end`, but _is_restart_start only fires on rows that
-    HAVE a real orig_served_date to compare chronologically.
+    become `pending_end`, but _is_restart_start is only checked against
+    rows that HAVE a real orig_served_date to compare chronologically.
     """
     groups = {}
     for row in rows:
@@ -279,7 +337,7 @@ def detect_restarts(docket_groups):
         pending_end = None  # most recent unmatched disposition row
 
         for row in rows:
-            if pending_end is not None and _is_restart_start(row) and row["orig_served_date"]:
+            if pending_end is not None and row["orig_served_date"] and _is_restart_start(row):
                 if row["orig_served_date"] > _end_date(pending_end):
                     results.append({
                         "dot_number": dot_number,
@@ -310,30 +368,21 @@ def dedupe_restarts(rows):
 
 
 def fetch_and_parse_restarts(year):
-    """Public entry point: fetches the full AuthHist All-With-History
-    dataset, detects every restart across all history, then filters down
-    to restarts whose restarted_date falls in `year`.
+    """Public entry point: two-phase targeted fetch (see module docstring
+    for why) instead of dumping the entire AuthHist dataset, then detects
+    every restart among the fetched dockets and filters down to restarts
+    whose restarted_date falls in `year`.
 
     Returns (restart_rows, source_row_count). Each restart row has:
     usdot, docket, paused_date, paused_reason, restarted_date,
     restarted_reason — matching the shape app.py's restart_worker expects.
     """
-    print(f"[restart_history] Fetching full AuthHist history (target year: {year})")
-    raw_rows = fetch_authhist_history_rows()
-    normalised = [_normalise_row(r) for r in raw_rows]
+    candidate_rows_raw = fetch_candidate_restart_rows(year)
+    candidate_normalised = [_normalise_row(r) for r in candidate_rows_raw]
+    docket_numbers = [r["docket_number"] for r in candidate_normalised]
 
-    # Drop records with NO date (orig OR disposition) in-range — in Python,
-    # since the server-side $where filter on these fields doesn't work
-    # (see fetch_authhist_history_rows above). See _row_relevant_year() and
-    # fix #1 in the module docstring: this used to check orig_served_date
-    # only, which silently dropped old-grant/recently-revoked rows that
-    # are exactly the ones needed to detect a same-year restart.
-    kept = []
-    for r in normalised:
-        relevant_year = _row_relevant_year(r)
-        if relevant_year is not None and relevant_year >= MIN_HISTORY_YEAR:
-            kept.append(r)
-    normalised = kept
+    history_rows_raw = fetch_docket_histories(docket_numbers)
+    normalised = [_normalise_row(r) for r in history_rows_raw]
 
     grouped = group_by_docket(normalised)
     all_restarts = detect_restarts(grouped)
@@ -352,6 +401,8 @@ def fetch_and_parse_restarts(year):
         "restarted_reason": r["restarted_reason"],
     } for r in in_year]
 
-    print(f"[restart_history] Total restarts detected (all years): {len(deduped)}")
+    source_row_count = len(candidate_rows_raw) + len(history_rows_raw)
+
+    print(f"[restart_history] Total restarts detected: {len(deduped)}")
     print(f"[restart_history] Restarts in {year}: {len(final_rows)}")
-    return final_rows, len(raw_rows)
+    return final_rows, source_row_count
