@@ -53,16 +53,11 @@ Authorized, since those carriers have not already been confirmed
 Active+Granted by AuthHist.
 
 RESTARTED CARRIERS (AuthHist All-With-History): a separate historical
-feature (see restart_history.py) — lets a user pick a past year (and
-optionally a single month within it) and find carriers whose authority
-was paused (revoked/terminated/suspended) and later restarted
-(granted/reinstated) in that period. Unlike the Motus feed above, this
-reads FMCSA's full-history AuthHist dataset rather than the
-daily-difference one, so years like 2023/2024 are queryable. As of the
-latest rewrite, restart_history.py no longer dumps the entire dataset —
-it targets just the requested year (or year+month) via a two-phase
-fetch, which is both faster and avoids the memory exhaustion that used
-to crash the process on a full-year (let alone full-history) pull.
+feature (see restart_history.py) — lets a user pick a past year and
+find carriers whose authority was paused (revoked/terminated/suspended)
+and later restarted (granted/reinstated) in that year. Unlike the Motus
+feed above, this reads FMCSA's full-history AuthHist dataset rather
+than the daily-difference one, so years like 2023/2024 are queryable.
 """
 import concurrent.futures
 import csv
@@ -410,7 +405,6 @@ def new_restart_job_state():
         "finished_time": None,
         "stop_requested": False,
         "year": None,
-        # Optional 1-12; None means "whole year" (see restart_worker below).
         "month": None,
         "source_row_count": 0,
         "fetch_error": None,
@@ -458,8 +452,8 @@ def motus_worker(job_id, username, from_date, to_date):
 
     OPTION A FIX: every row here has already been confirmed by FMCSA's own
     AuthHist dataset as status=Active, reason=Granted (see motus.py's
-    _is_new_grant()). Because SAFER's public snapshot can lag AuthHist by
-    a day or two, we skip re-checking authority_status against SAFER for
+    _is_new_grant()). Because SAFER's public snapshot can lag AuthHist by a
+    day or two, we skip re-checking authority_status against SAFER for
     these rows (skip_authority_check=True below) and treat AuthHist's own
     signal as authoritative. SAFER is still queried to pull entity_type,
     power_units, phone, city/state etc.
@@ -666,18 +660,20 @@ def motus_register_worker(job_id, username, from_date, to_date):
 
 
 def restart_worker(job_id, username, year, month=None):
-    """Fetches FMCSA AuthHist "All With History" for `year` — optionally
-    narrowed to a single `month` (1-12) — and detects carriers whose
-    authority was paused then later restarted. Does NOT re-check each MC
-    against SAFER by default — it just reports what AuthHist itself says
-    (MC number + pause date + restart date), since that's the client's
-    requirement. If the MC already exists in this user's saved/qualified
-    data, we attach power_units/cargo for free (no extra FMCSA request).
+    """Fetches FMCSA AuthHist "All With History" for `year` (optionally
+    narrowed to a single `month`, 1-12 — much faster, since a full-year
+    fetch pulls ~12x more candidate/history rows) and detects carriers
+    whose authority was paused then later restarted. Unlike the scanners
+    above, this does NOT re-check each MC against SAFER — it just reports
+    what AuthHist itself says (MC number + pause date + restart date),
+    since that's the client's requirement.
 
-    month=None means the whole year (matches previous behaviour); passing
-    a month narrows both the underlying fetch (restart_history_mod does a
-    much smaller, targeted query) and the final results to that period,
-    so a single-month search finishes markedly faster than a full year.
+    Enrichment (phone/city/state/power_units) is done at ZERO Webshare
+    proxy cost, in priority order:
+      1) already saved by this user (fastest, zero external requests)
+      2) FMCSA's free QCMobile API (phone + city/state only — it has no
+         general "power units" field for property/trucking carriers, so
+         power_units stays unavailable unless (1) hit)
     """
     with restart_jobs_lock:
         st = restart_jobs.get(job_id)
@@ -727,13 +723,24 @@ def restart_worker(job_id, username, year, month=None):
         entry = dict(row)
         entry["mc_number"] = row["docket"] or row["usdot"]
 
-        # Free enrichment: if this MC is already saved by the user, pull
-        # power_units/cargo from there instead of hitting SAFER again.
         saved = db.get_saved_one(username, entry["mc_number"]) if entry["mc_number"] else None
-        entry["power_units"] = saved.get("power_units") if saved else None
-        entry["cargo_carried"] = saved.get("cargo_carried", "") if saved else ""
-        entry["city"] = saved.get("city", "") if saved else ""
-        entry["state"] = saved.get("state", "") if saved else ""
+
+        if saved:
+            entry["power_units"] = saved.get("power_units")
+            entry["cargo_carried"] = saved.get("cargo_carried", "")
+            entry["city"] = saved.get("city", "")
+            entry["state"] = saved.get("state", "")
+            entry["phone"] = saved.get("phone", "")
+        else:
+            qc = qcmobile_mod.fetch_carrier_by_docket(row["docket"])
+            if not qc and row.get("usdot"):
+                qc = qcmobile_mod.fetch_carrier_by_dot(row["usdot"])
+
+            entry["power_units"] = None  # not exposed by QCMobile for property carriers
+            entry["cargo_carried"] = ""
+            entry["city"] = qc["city"] if qc else ""
+            entry["state"] = qc["state"] if qc else ""
+            entry["phone"] = qc["phone"] if qc else ""
 
         enriched.append(entry)
 
@@ -1781,7 +1788,6 @@ def restarted_start():
 
     data = request.get_json(force=True)
     year = data.get("year")
-    # Optional: 1-12. None/blank/"0" means "whole year" (previous behaviour).
     month = data.get("month")
 
     try:
@@ -1792,15 +1798,15 @@ def restarted_start():
     if year < 2015 or year > datetime.now().year:
         return jsonify({"error": f"Year must be between 2015 and {datetime.now().year}"}), 400
 
-    if month in (None, "", "0", 0):
-        month = None
-    else:
+    if month not in (None, ""):
         try:
             month = int(month)
         except (TypeError, ValueError):
-            return jsonify({"error": "Month must be a number 1-12"}), 400
+            return jsonify({"error": "Month must be a number between 1 and 12"}), 400
         if month < 1 or month > 12:
             return jsonify({"error": "Month must be between 1 and 12"}), 400
+    else:
+        month = None
 
     username = session["username"]
     t = threading.Thread(
@@ -2083,7 +2089,7 @@ def _csv_response(rows, filename):
         "motus_reason", "motus_status_change_date",
         "motus_authority_date",
         # Restarted-carrier fields — ignored for other CSV rows.
-        "paused_date", "paused_reason", "restarted_date", "restarted_reason",
+        "paused_date", "paused_reason", "restarted_date", "restarted_reason", "phone",
     ]
     writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction="ignore")
     writer.writeheader()
