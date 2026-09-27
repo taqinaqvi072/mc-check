@@ -2,64 +2,79 @@
 
 Source: FMCSA "AuthHist - All With History" dataset on Socrata
 (https://catalog.data.gov/dataset/authhist-all-with-history), dataset id
-9mw4-x3tu. Unlike motus.py's dataset (dm5j-zc6c / yu5v-wbh6), which is a
-DAILY DIFFERENCE feed (only last ~24h), this one keeps the FULL history of
-every authority action for every carrier/broker/freight forwarder — so it
-can answer "who paused their authority in 2023/2024 and later restarted".
+9mw4-x3tu.
 
-RESTART DEFINITION: a carrier "restarted" if it has 2+ authority action
-records for the same USDOT/docket where an earlier record's final action
-(revoked / terminated / withdrawn / inactive) is followed, after a gap, by
-a later record's original action (granted / reinstated / active).
+CONFIRMED SCHEMA (from a live 400-error response, since Socrata echoes the
+resolved column list): this dataset has ONLY these columns —
 
-FIELD NAMES: the exact machine field names on this dataset have NOT been
-confirmed against a live response yet (same caveat as motus.py). This
-module prints the raw Socrata response's field names + a row sample on
-every run so any mismatch shows up immediately in your host's logs
-instead of silently returning 0 restarts. Adjust the *_FIELDS lists below
-once you've checked a real run's logs.
+    docket_number, dot_number, sub_number, mod_col_1,
+    original_action_desc, orig_served_date,
+    disp_action_desc, disp_decided_date, disp_served_date
+
+There is NO usdot_number/op_auth_type/reason/status_change_date here (that
+schema belongs to motus.py's DAILY-DIFFERENCE dataset, dm5j-zc6c — a
+different dataset). Each row in THIS dataset is one full authority record
+for one docket, carrying both:
+  - its start:  original_action_desc (e.g. "GRANTED") + orig_served_date
+  - its end:    disp_action_desc (e.g. "REVOKED")     + disp_decided_date
+                (disp_served_date as a fallback when disp_decided_date is
+                blank)
+There is no carrier-type/category column on this dataset, so category
+filtering (Property/Passengers) is NOT possible here.
+
+RESTART DEFINITION: for the same (dot_number, docket_number), one row's
+authority record ENDS (has a disp_decided_date/disp_served_date), and a
+LATER row for that same docket STARTS again afterwards (orig_served_date
+after that end date). That later start is the "restart".
+
+Because this dataset holds decades of history and has no per-carrier
+category to narrow with, we fetch once (bounded by MIN_HISTORY_YEAR so we
+don't pull ancient 1980s records nobody needs) and do all grouping/
+restart-detection in Python, then filter the final results down to the
+requested year. This keeps the query itself simple/robust (no IN-clause
+batching needed) at the cost of a heavier one-time fetch.
 """
 import requests
 
 AUTHHIST_HISTORY_API = "https://data.transportation.gov/resource/9mw4-x3tu.json"
 
-RESTART_INCLUDE_CATEGORIES = [
-    "MOTOR CARRIER OF PROPERTY",
-    "MOTOR CARRIER OF PASSENGERS",
-]
-
-# Keywords that mark a record as the carrier's authority being PAUSED
-# (final/terminating action on that authority record).
-PAUSE_KEYWORDS = ["REVOK", "TERM", "WITHDRAW", "INACTIVE", "SUSPEND", "CANCEL"]
-
-# Keywords that mark a record as the carrier's authority being (RE)STARTED
-# (original/granting action on a later authority record).
-RESTART_KEYWORDS = ["GRANT", "REINSTAT", "ACTIVE"]
-
 REQUEST_TIMEOUT = 30
-PAGE_LIMIT = 50000  # Socrata max per page; we page through with $offset
+PAGE_LIMIT = 50000  # Socrata max per page; paged with $offset
+
+# Don't bother pulling authority records older than this — restarts from
+# decades ago aren't useful, and it keeps the one-time fetch smaller.
+MIN_HISTORY_YEAR = 2010
+
+# Keywords marking a disposition as the authority genuinely ending (as
+# opposed to e.g. a clerical/administrative disposition that isn't really
+# a pause). Kept permissive — any row with a disposition date at all is
+# treated as "ended"; these keywords only exclude a few disposition types
+# that shouldn't count as a real pause.
+DISPOSITION_EXCLUDE_KEYWORDS = ["DISMISS", "WITHDRAWN BY APPLICANT PRE-GRANT"]
+
+# Keywords marking a later record's start as a genuine (re)start, as
+# opposed to some other administrative original-action type.
+RESTART_KEYWORDS = ["GRANT", "REINSTAT"]
 
 
 def _normalise(value):
     return str(value or "").strip().upper()
 
 
-def _category_allowed(authority_type, include_categories):
-    authority_type = _normalise(authority_type)
-    categories = [_normalise(c) for c in (include_categories or RESTART_INCLUDE_CATEGORIES)]
-    return any(category in authority_type for category in categories)
+def _clean_date(value):
+    value = str(value or "").strip()
+    if "T" in value:
+        return value.split("T")[0]
+    if len(value) == 8 and value.isdigit():
+        return f"{value[:4]}-{value[4:6]}-{value[6:8]}"
+    return value
 
 
-def _year_bounds(year):
-    return f"{year}-01-01T00:00:00", f"{year}-12-31T23:59:59"
-
-
-def fetch_authhist_history_rows(year, include_categories=None):
-    """Pages through every AuthHist "All With History" row whose
-    status_change_date falls in `year`. Returns the raw Socrata rows
-    (list of dicts) — NOT yet grouped or restart-detected."""
-    start, end = _year_bounds(year)
-    where = f"status_change_date >= '{start}' AND status_change_date <= '{end}'"
+def fetch_authhist_history_rows():
+    """Pages through every AuthHist "All With History" row with
+    orig_served_date on/after MIN_HISTORY_YEAR. Returns the raw Socrata
+    rows (list of dicts) — NOT yet grouped or restart-detected."""
+    where = f"orig_served_date >= '{MIN_HISTORY_YEAR}-01-01T00:00:00'"
 
     all_rows = []
     offset = 0
@@ -69,7 +84,7 @@ def fetch_authhist_history_rows(year, include_categories=None):
             "$limit": PAGE_LIMIT,
             "$offset": offset,
             "$where": where,
-            "$order": "usdot_number ASC, status_change_date ASC",
+            "$order": "dot_number ASC, docket_number ASC, orig_served_date ASC",
         }
         response = requests.get(AUTHHIST_HISTORY_API, params=params, timeout=REQUEST_TIMEOUT)
 
@@ -83,9 +98,7 @@ def fetch_authhist_history_rows(year, include_categories=None):
             raise ValueError(f"Unexpected AuthHist response type: {type(page_rows).__name__}")
 
         if page_num == 0 and page_rows:
-            sample = page_rows[0]
-            print(f"[restart_history] Sample raw row keys: {list(sample.keys())}")
-            print(f"[restart_history] Sample raw row: {sample}")
+            print(f"[restart_history] Sample raw row: {page_rows[0]}")
 
         all_rows.extend(page_rows)
         print(f"[restart_history] Page {page_num}: {len(page_rows)} rows (offset {offset})")
@@ -95,87 +108,82 @@ def fetch_authhist_history_rows(year, include_categories=None):
         offset += PAGE_LIMIT
         page_num += 1
 
-    print(f"[restart_history] Total rows fetched for {year}: {len(all_rows)}")
+    print(f"[restart_history] Total rows fetched (>= {MIN_HISTORY_YEAR}): {len(all_rows)}")
     return all_rows
 
 
 def _normalise_row(row):
-    """Maps a raw Socrata row to a stable shape. Field names here are
-    best-effort (matching the daily-difference schema) — check the
-    [restart_history] Sample raw row keys log line and adjust if the
-    full-history dataset uses different names."""
     return {
-        "usdot": str(row.get("usdot_number") or "").strip(),
-        "docket": str(row.get("docket_number") or "").strip(),
-        "category": str(row.get("op_auth_type") or "").strip(),
-        "status": str(row.get("op_auth_status") or "").strip(),
-        "reason": str(row.get("reason") or "").strip(),
-        "status_change_date": _clean_date(row.get("status_change_date")),
+        "dot_number": str(row.get("dot_number") or "").strip(),
+        "docket_number": str(row.get("docket_number") or "").strip(),
+        "sub_number": str(row.get("sub_number") or "").strip(),
+        "mod_col_1": str(row.get("mod_col_1") or "").strip(),
+        "original_action_desc": str(row.get("original_action_desc") or "").strip(),
+        "orig_served_date": _clean_date(row.get("orig_served_date")),
+        "disp_action_desc": str(row.get("disp_action_desc") or "").strip(),
+        "disp_decided_date": _clean_date(row.get("disp_decided_date")),
+        "disp_served_date": _clean_date(row.get("disp_served_date")),
     }
 
 
-def _clean_date(value):
-    value = str(value or "").strip()
-    if "T" in value:
-        return value.split("T")[0]
-    if len(value) == 8 and value.isdigit():
-        return f"{value[:4]}-{value[4:6]}-{value[6:8]}"
-    return value
+def _end_date(row):
+    """A row's authority-ended date: disp_decided_date, falling back to
+    disp_served_date when the former is blank."""
+    return row["disp_decided_date"] or row["disp_served_date"]
 
 
-def _is_pause_event(reason, status):
-    text = _normalise(reason) + " " + _normalise(status)
-    return any(kw in text for kw in PAUSE_KEYWORDS)
+def _is_real_disposition(row):
+    end_date = _end_date(row)
+    if not end_date:
+        return False
+    desc = _normalise(row["disp_action_desc"])
+    return not any(kw in desc for kw in DISPOSITION_EXCLUDE_KEYWORDS)
 
 
-def _is_restart_event(reason, status):
-    text = _normalise(reason) + " " + _normalise(status)
-    return any(kw in text for kw in RESTART_KEYWORDS)
+def _is_restart_start(row):
+    desc = _normalise(row["original_action_desc"])
+    return any(kw in desc for kw in RESTART_KEYWORDS)
 
 
-def group_by_usdot(rows):
-    """Groups normalised rows by USDOT number, each group's events sorted
-    by status_change_date ascending."""
+def group_by_docket(rows):
+    """Groups normalised rows by (dot_number, docket_number) — the same
+    authority, tracked across its modifications/re-grants — sorted by
+    orig_served_date ascending."""
     groups = {}
     for row in rows:
-        if not row["usdot"]:
+        if not row["dot_number"] or not row["docket_number"]:
             continue
-        groups.setdefault(row["usdot"], []).append(row)
-    for usdot in groups:
-        groups[usdot].sort(key=lambda r: r["status_change_date"])
+        key = (row["dot_number"], row["docket_number"])
+        groups.setdefault(key, []).append(row)
+    for key in groups:
+        groups[key].sort(key=lambda r: r["orig_served_date"])
     return groups
 
 
-def detect_restarts(usdot_groups, include_categories=None):
-    """Walks each USDOT's sorted event list looking for a PAUSE event
-    followed later by a RESTART event. Returns one entry per detected
-    restart pair: {usdot, docket, category, paused_date, paused_reason,
-    restarted_date, restarted_reason}."""
+def detect_restarts(docket_groups):
+    """Walks each (dot_number, docket_number)'s sorted rows. Whenever a
+    row has a real disposition (its authority ended) and a LATER row for
+    the same docket starts again afterwards, that's a restart."""
     results = []
 
-    for usdot, events in usdot_groups.items():
-        pending_pause = None  # most recent unmatched pause event
+    for (dot_number, docket_number), rows in docket_groups.items():
+        pending_end = None  # most recent unmatched disposition row
 
-        for event in events:
-            if not _category_allowed(event["category"], include_categories):
-                continue
-
-            if _is_pause_event(event["reason"], event["status"]):
-                pending_pause = event
-                continue
-
-            if _is_restart_event(event["reason"], event["status"]) and pending_pause:
-                if event["status_change_date"] > pending_pause["status_change_date"]:
+        for row in rows:
+            if pending_end is not None and _is_restart_start(row):
+                if row["orig_served_date"] > _end_date(pending_end):
                     results.append({
-                        "usdot": usdot,
-                        "docket": event["docket"] or pending_pause["docket"],
-                        "category": event["category"],
-                        "paused_date": pending_pause["status_change_date"],
-                        "paused_reason": pending_pause["reason"] or pending_pause["status"],
-                        "restarted_date": event["status_change_date"],
-                        "restarted_reason": event["reason"] or event["status"],
+                        "dot_number": dot_number,
+                        "docket_number": docket_number,
+                        "paused_date": _end_date(pending_end),
+                        "paused_reason": pending_end["disp_action_desc"],
+                        "restarted_date": row["orig_served_date"],
+                        "restarted_reason": row["original_action_desc"],
                     })
-                pending_pause = None  # matched — reset in case of further cycles
+                    pending_end = None  # matched — reset for further cycles
+
+            if _is_real_disposition(row):
+                pending_end = row
 
     return results
 
@@ -184,7 +192,7 @@ def dedupe_restarts(rows):
     seen = set()
     out = []
     for row in rows:
-        key = (row["usdot"], row["paused_date"], row["restarted_date"])
+        key = (row["dot_number"], row["docket_number"], row["paused_date"], row["restarted_date"])
         if key in seen:
             continue
         seen.add(key)
@@ -192,17 +200,36 @@ def dedupe_restarts(rows):
     return out
 
 
-def fetch_and_parse_restarts(year, include_categories=None):
-    """Public entry point: fetches AuthHist All-With-History for `year`,
-    normalises, groups by USDOT, and returns deduped restart pairs.
+def fetch_and_parse_restarts(year):
+    """Public entry point: fetches the full AuthHist All-With-History
+    dataset (from MIN_HISTORY_YEAR onward), detects every restart across
+    all history, then filters down to restarts whose restarted_date falls
+    in `year`.
 
-    Returns (restart_rows, source_row_count).
+    Returns (restart_rows, source_row_count). Each restart row has:
+    usdot, docket, paused_date, paused_reason, restarted_date,
+    restarted_reason — matching the shape app.py's restart_worker expects.
     """
-    print(f"[restart_history] AuthHist All-With-History request for year {year}")
-    raw_rows = fetch_authhist_history_rows(year, include_categories)
+    print(f"[restart_history] Fetching full AuthHist history (target year: {year})")
+    raw_rows = fetch_authhist_history_rows()
     normalised = [_normalise_row(r) for r in raw_rows]
-    grouped = group_by_usdot(normalised)
-    restarts = detect_restarts(grouped, include_categories)
-    final_rows = dedupe_restarts(restarts)
-    print(f"[restart_history] Detected {len(final_rows)} restart(s) for {year}")
+    grouped = group_by_docket(normalised)
+    all_restarts = detect_restarts(grouped)
+    deduped = dedupe_restarts(all_restarts)
+
+    year_str = str(year)
+    in_year = [r for r in deduped if r["restarted_date"][:4] == year_str]
+
+    # Map to the field names app.py's restart_worker/CSV already expect.
+    final_rows = [{
+        "usdot": r["dot_number"],
+        "docket": r["docket_number"],
+        "paused_date": r["paused_date"],
+        "paused_reason": r["paused_reason"],
+        "restarted_date": r["restarted_date"],
+        "restarted_reason": r["restarted_reason"],
+    } for r in in_year]
+
+    print(f"[restart_history] Total restarts detected (all years): {len(deduped)}")
+    print(f"[restart_history] Restarts in {year}: {len(final_rows)}")
     return final_rows, len(raw_rows)
