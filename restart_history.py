@@ -22,13 +22,13 @@ for one docket, carrying both:
 There is no carrier-type/category column on this dataset, so category
 filtering (Property/Passengers) is NOT possible here.
 
-Dates come back from Socrata as plain "MM/DD/YYYY" strings (confirmed via
-a live sample fetch — no time component), which is why a server-side
-"$where date >= '...'" filter never matched a normal date column: these
-columns aren't a real Socrata date type, so ">=" was doing a plain STRING
-comparison against an ISO literal that never matches MM/DD/YYYY. That
-said, plain-text "like" filtering DOES work against these columns (see
-Phase 1 below), which is what makes the targeted-fetch approach possible.
+Dates come back from Socrata as plain "MM/DD/YYYY" strings, ZERO-PADDED
+(confirmed via a live sample fetch — e.g. "06/24/2005", not "6/24/2005"),
+with no time component. That zero-padding is what makes month-scoped
+`like` filtering reliable (see Phase 1 below) — a server-side "$where
+date >= '...'" filter never worked here because these columns aren't a
+real Socrata date type, so ">=" was doing a plain STRING comparison
+against an ISO literal that never matches MM/DD/YYYY.
 
 RESTART DEFINITION: for the same (dot_number, docket_number), one row's
 authority record ENDS (has a disp_decided_date/disp_served_date), and a
@@ -36,55 +36,50 @@ LATER row for that same docket STARTS again afterwards (orig_served_date
 after that end date). That later start is the "restart".
 
 --------------------------------------------------------------------------
-REWRITE (2026-09-27): two-phase targeted fetch instead of a full dump.
+Two-phase targeted fetch (instead of dumping the entire dataset):
 
-The previous version fetched the ENTIRE dataset (paged, 50k rows/page)
-into memory before doing anything else. This dataset covers ~90 years of
-FMCSA authority history across every carrier that has ever existed —
-easily several million rows. On a small server that meant:
-  - the whole thing being held in memory at once (raw JSON + normalised
-    copies) was enough to exhaust available RAM, and
-  - the host would then OOM-kill and restart the process mid-fetch.
-That matches what was observed: a burst of 502s from the app itself
-going down, then a return to 200 once the container restarted — but with
-the in-memory job state (restart_jobs dict) wiped, so the UI showed 0
-results even though the search had "completed" from the browser's POV.
+The dataset covers ~90 years of FMCSA authority history across every
+carrier that has ever existed — easily several million rows. Fetching it
+all into memory at once was enough to exhaust RAM on a small server,
+causing the host to OOM-kill and restart the process mid-fetch (seen as
+a burst of 502s, followed by the in-memory job state being wiped so the
+UI showed 0 results even though the search "completed").
 
-Fix: don't fetch the whole dataset. We only ever care about carriers that
-had a NEW authority action (GRANT/REINSTATE) in the requested year, so:
+Fix: only fetch what's needed for the requested period.
 
   Phase 1 — fetch ONLY rows where original_action_desc looks like a
-  grant/reinstatement AND orig_served_date's year matches the requested
-  year (both filtered server-side via SoQL `like`, since these are plain
-  text columns and year is reliably the last 4 characters of a fixed
-  "MM/DD/YYYY" string). This is a small, fast query — a subset of a
-  single year's filings, not 90 years of history.
+  grant/reinstatement AND orig_served_date falls in the requested
+  year (optionally narrowed to a single month too), via SoQL `like` on
+  these plain-text columns.
 
   Phase 2 — take the distinct docket_numbers from Phase 1 and fetch each
-  one's FULL history (batched via `docket_number in (...)`, chunks of
-  ~100 at a time) so we have enough context to tell whether that grant/
+  one's FULL history (batched via `docket_number in (...)`, ~100 at a
+  time) so we have enough context to tell whether that grant/
   reinstatement was preceded by a real prior disposition (i.e. is
   actually a restart, not a brand-new carrier's first authority).
 
-This keeps memory bounded to "one year's worth of candidates plus their
-full docket histories" instead of "every authority record FMCSA has ever
-issued", regardless of which year is queried.
+MONTH SCOPING: fetch_and_parse_restarts(year, month=None) now accepts an
+optional `month` (1-12). When given, Phase 1 is narrowed to just that
+month (e.g. "03/%/2023" instead of "%/2023"), and the final year filter
+also checks the month. This cuts the candidate set (and therefore Phase
+2's docket count and total fetch time) by roughly a factor of 12 compared
+to a full-year search, since FMCSA issues tens of thousands of
+grant/reinstatement actions per year across all carriers.
 
 Also carried over from the previous bugfix pass:
-  - "DISCONTINUED REVOCATION" is added to DISPOSITION_EXCLUDE_KEYWORDS —
-    it means a revocation NOTICE was cancelled/withdrawn, i.e. the
-    authority never actually stopped, so it must not be treated as a real
-    "pause" end date (it used to corrupt the pending-pause tracking).
+  - "DISCONTINUED REVOCATION" is in DISPOSITION_EXCLUDE_KEYWORDS — it
+    means a revocation NOTICE was cancelled/withdrawn, i.e. the authority
+    never actually stopped, so it must not be treated as a real "pause"
+    end date (it used to corrupt the pending-pause tracking).
 
 KNOWN REMAINING SIMPLIFICATION: grouping is still by
 (dot_number, docket_number) only, ignoring sub_number/mod_col_1. Distinct
 authority "categories" under the same docket (e.g. COMMON vs CONTRACT vs
 BROKER) get treated as one continuous chronological chain. FMCSA's own
-category labels for the same docket are inconsistent across decades
-(e.g. "MOTOR PROPERTY COMMON CARRIER" vs plain "COMMON"), so splitting
-groups by mod_col_1 as-is would likely create MORE false splits than it
-fixes. Leaving this alone until there's a reliable way to normalise
-mod_col_1 across eras.
+category labels for the same docket are inconsistent across decades, so
+splitting groups by mod_col_1 as-is would likely create MORE false splits
+than it fixes. Leaving this alone until there's a reliable way to
+normalise mod_col_1 across eras.
 --------------------------------------------------------------------------
 """
 import re
@@ -98,9 +93,6 @@ REQUEST_TIMEOUT = 30
 PAGE_LIMIT = 50000  # Socrata max per page; paged with $offset
 
 # How many docket_numbers to pack into one Phase-2 "in (...)" query.
-# Keeps the $where clause a reasonable length and each response a
-# manageable size (each docket typically has anywhere from a handful to
-# a few hundred historical rows).
 DOCKET_BATCH_SIZE = 100
 
 # Small pause between paginated/batched requests — there's no Socrata
@@ -108,10 +100,7 @@ DOCKET_BATCH_SIZE = 100
 # tighter throttling; this keeps us polite and reduces 429s.
 REQUEST_PACING_SECONDS = 0.2
 
-# Retry policy for transient errors (429/5xx/network) — no app token
-# means we're more likely to get throttled occasionally; a few retries
-# with backoff is cheap insurance against a whole search failing on one
-# blip.
+# Retry policy for transient errors (429/5xx/network).
 MAX_RETRIES = 4
 RETRY_BACKOFF_BASE_SECONDS = 2
 
@@ -151,8 +140,7 @@ def _soql_escape(value):
 def _clean_date(value):
     """Format-flexible date normaliser -> 'YYYY-MM-DD' or ''. Handles ISO
     timestamps/dates, compact YYYYMMDD, and MM/DD/YYYY (confirmed via a
-    live sample fetch to be this dataset's actual format — plain text,
-    no time component)."""
+    live sample fetch to be this dataset's actual, zero-padded format)."""
     value = str(value or "").strip()
     if not value:
         return ""
@@ -228,19 +216,29 @@ def _fetch_all_pages(where_clause):
     return all_rows
 
 
-def fetch_candidate_restart_rows(year):
+def fetch_candidate_restart_rows(year, month=None):
     """Phase 1: fetch only rows that look like a grant/reinstatement
-    served in `year`. Both conditions are filtered server-side — these
-    are plain text columns, so we use `like`, matching the same
-    contains-style logic as _is_restart_start() below (not a strict
-    prefix match), and a `%/{year}` suffix match on orig_served_date
-    (reliable since the format is a fixed-width 'MM/DD/YYYY')."""
+    served in `year` (optionally narrowed to a single `month`, 1-12).
+
+    Both conditions are filtered server-side — these are plain text
+    columns, so we use `like`, matching the same contains-style logic as
+    _is_restart_start() below (not a strict prefix match), and a
+    date-suffix match on orig_served_date (reliable since the format is
+    a fixed-width, zero-padded 'MM/DD/YYYY').
+    """
     keyword_clauses = " OR ".join(
         f"upper(original_action_desc) like '%{_soql_escape(kw)}%'"
         for kw in RESTART_KEYWORDS
     )
-    where_clause = f"({keyword_clauses}) AND orig_served_date like '%/{int(year)}'"
-    print(f"[restart_history] Phase 1: fetching {year} grant/reinstatement candidates")
+    if month:
+        date_pattern = f"{int(month):02d}/%/{int(year)}"
+        period_label = f"{int(year)}-{int(month):02d}"
+    else:
+        date_pattern = f"%/{int(year)}"
+        period_label = str(year)
+
+    where_clause = f"({keyword_clauses}) AND orig_served_date like '{date_pattern}'"
+    print(f"[restart_history] Phase 1: fetching {period_label} grant/reinstatement candidates")
     rows = _fetch_all_pages(where_clause)
     print(f"[restart_history] Phase 1: {len(rows)} candidate rows")
     return rows
@@ -367,17 +365,17 @@ def dedupe_restarts(rows):
     return out
 
 
-def fetch_and_parse_restarts(year):
+def fetch_and_parse_restarts(year, month=None):
     """Public entry point: two-phase targeted fetch (see module docstring
-    for why) instead of dumping the entire AuthHist dataset, then detects
-    every restart among the fetched dockets and filters down to restarts
-    whose restarted_date falls in `year`.
+    for why), optionally scoped to a single `month` (1-12) as well as
+    `year`, then detects every restart among the fetched dockets and
+    filters down to restarts whose restarted_date falls in that period.
 
     Returns (restart_rows, source_row_count). Each restart row has:
     usdot, docket, paused_date, paused_reason, restarted_date,
     restarted_reason — matching the shape app.py's restart_worker expects.
     """
-    candidate_rows_raw = fetch_candidate_restart_rows(year)
+    candidate_rows_raw = fetch_candidate_restart_rows(year, month)
     candidate_normalised = [_normalise_row(r) for r in candidate_rows_raw]
     docket_numbers = [r["docket_number"] for r in candidate_normalised]
 
@@ -389,7 +387,17 @@ def fetch_and_parse_restarts(year):
     deduped = dedupe_restarts(all_restarts)
 
     year_str = str(year)
-    in_year = [r for r in deduped if r["restarted_date"][:4] == year_str]
+    month_str = f"{int(month):02d}" if month else None
+
+    def _in_period(r):
+        d = r["restarted_date"]
+        if d[:4] != year_str:
+            return False
+        if month_str is not None and d[5:7] != month_str:
+            return False
+        return True
+
+    in_period = [r for r in deduped if _in_period(r)]
 
     # Map to the field names app.py's restart_worker/CSV already expect.
     final_rows = [{
@@ -399,10 +407,11 @@ def fetch_and_parse_restarts(year):
         "paused_reason": r["paused_reason"],
         "restarted_date": r["restarted_date"],
         "restarted_reason": r["restarted_reason"],
-    } for r in in_year]
+    } for r in in_period]
 
     source_row_count = len(candidate_rows_raw) + len(history_rows_raw)
 
+    period_label = f"{year}-{month_str}" if month_str else str(year)
     print(f"[restart_history] Total restarts detected: {len(deduped)}")
-    print(f"[restart_history] Restarts in {year}: {len(final_rows)}")
+    print(f"[restart_history] Restarts in {period_label}: {len(final_rows)}")
     return final_rows, source_row_count
