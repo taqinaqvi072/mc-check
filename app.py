@@ -198,6 +198,14 @@ PROXIES = [
     ("191.96.254.138", "6185", "mgmmtqbd", "9dxxbjx501ox", "http"),
     ("198.46.161.42", "5092", "mgmmtqbd", "9dxxbjx501ox", "http"),
 
+      # acc 5 (haidi 1)
+    ("31.59.20.176", "6754", "vwylbzpm", "453wveihxrck", "http"),
+    ("45.38.107.97", "6014", "vwylbzpm", "453wveihxrck", "http"),
+    ("198.23.243.226", "6361", "vwylbzpm", "453wveihxrck", "http"),
+    ("38.154.185.97", "6370", "vwylbzpm", "453wveihxrck", "http"),
+    ("191.96.254.138", "6185", "vwylbzpm", "453wveihxrck", "http"),
+    ("198.46.161.42", "5092", "vwylbzpm", "453wveihxrck", "http"),
+
    
 
 ]
