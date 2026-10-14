@@ -1,4 +1,4 @@
-"""Motus AuthHist Daily Difference integration for MC Scout.
+"""Motus AuthHist integration for MC Scout.
 
 Source: FMCSA "Motus AuthHist" dataset on Socrata
 (https://data.transportation.gov/Trucking-and-Motorcoaches/Motus-AuthHist/dm5j-zc6c)
@@ -6,49 +6,46 @@ Source: FMCSA "Motus AuthHist" dataset on Socrata
 suspensions, inactivations, withdrawals, revocations), not just brand-new
 registrations.
 
-IMPORTANT: filtering to Property/Passengers alone is NOT enough to get
-"recently registered" carriers -- that gives every kind of status change
-in the window. To get carriers that are newly registered (freshly granted
-authority for the first time), we additionally require the row's `reason`
-field to indicate a GRANT, excluding reinstatements/suspensions/
-revocations/withdrawals.
+To get carriers that are newly registered (freshly granted authority), we
+require the row's `reason` (or status) to indicate a GRANT, excluding
+reinstatements/suspensions/revocations/withdrawals.
 
-The exact machine field names below (usdot_number, docket_number,
-op_auth_type, op_auth_status, reason, status_change_date) are the ones
-ChatGPT supplied and match public documentation/screenshots of this
-dataset, but they have NOT been confirmed against a live raw response
-yet. This version prints the raw Socrata error body (if any) and a
-sample of raw rows/status/reason values to your host's logs (e.g.
-Render's Logs tab) on every run, so any field-name mismatch shows up
-immediately instead of failing silently or being misread as "0 results".
+SPEED NOTE: category + grant filtering is now done SERVER-SIDE in the
+Socrata $where clause, and only the needed columns are requested via
+$select. Previously every status change in the window was downloaded
+(up to 50,000 rows) and filtered in Python, which made the "fetching"
+stage slow. Python-side filtering is kept as a safety net.
+
+Optional: set SOCRATA_APP_TOKEN (free from data.transportation.gov) to
+avoid Socrata throttling.
 """
+import os
+
 import requests
 
-# "Motus AuthHist" (dm5j-zc6c) is a DAILY DIFFERENCE dataset -- it only
-# contains records updated in the past ~24 hours, so any date range older
-# than that returns 0 rows. For historical queries we need the companion
-# "Motus AuthHist - All With History" dataset instead, which has the same
-# schema but keeps the FULL history going back.
 MOTUS_AUTHHIST_API = "https://data.transportation.gov/resource/yu5v-wbh6.json"
 MOTUS_INCLUDE_CATEGORIES = [
     "MOTOR CARRIER OF PROPERTY",
     "MOTOR CARRIER OF PASSENGERS",
 ]
-# Reasons that indicate a carrier is genuinely NEW (first-time authority
-# grant), as opposed to an existing carrier's authority changing state.
-# Adjust this list once you've confirmed the real `reason` values from the
-# debug logs below -- this is a best-effort keyword match, not a confirmed
-# exact enum.
 GRANT_KEYWORDS = ["GRANT"]
-# Reasons that should NEVER count as "newly registered", even if a GRANT
-# keyword happens to appear inside them (defensive -- e.g. some datasets
-# phrase reinstatement as "REINSTATE AFTER GRANT" or similar).
 EXCLUDE_KEYWORDS = ["REINSTAT", "REVOK", "SUSPEND", "WITHDRAW", "TERM", "CANCEL"]
-REQUEST_TIMEOUT = 30
+REQUEST_TIMEOUT = 60
+PAGE_SIZE = 10000
+MAX_ROWS = 200000  # hard safety cap
+
+SELECT_FIELDS = (
+    "usdot_number, docket_number, op_auth_type, "
+    "op_auth_status, reason, status_change_date"
+)
 
 
 def _normalise(value):
     return str(value or "").strip().upper()
+
+
+def _esc(value):
+    return str(value).replace("'", "''")
 
 
 def _category_allowed(authority_type, include_categories):
@@ -64,8 +61,6 @@ def _is_new_grant(reason, status):
         return False
     if any(good in reason_u for good in GRANT_KEYWORDS):
         return True
-    # Some rows may carry the "new grant" signal on the status field
-    # instead of reason (dataset naming isn't 100% confirmed yet).
     if any(good in status_u for good in GRANT_KEYWORDS):
         return True
     return False
@@ -88,50 +83,78 @@ def _iso_end(date_str):
     return f"{date_str}T23:59:59"
 
 
-def fetch_authhist_rows(from_date, to_date):
-    """from_date/to_date: 'YYYY-MM-DD' strings."""
-    params = {
-        "$limit": 50000,
-        "$where": (
-            f"status_change_date >= '{_iso_start(from_date)}' "
-            f"AND status_change_date <= '{_iso_end(to_date)}'"
-        ),
-        "$order": "status_change_date ASC, usdot_number ASC",
-    }
-    response = requests.get(MOTUS_AUTHHIST_API, params=params, timeout=REQUEST_TIMEOUT)
+def _build_where(from_date, to_date, include_categories):
+    categories = include_categories or MOTUS_INCLUDE_CATEGORIES
 
-    if response.status_code >= 400:
-        # Surface Socrata's actual error message (e.g. "no such column",
-        # bad $where syntax) instead of a generic requests exception --
-        # this is the fastest way to catch a wrong field name.
-        raise ValueError(
-            f"Motus AuthHist API returned {response.status_code}: {response.text[:500]}"
-        )
+    date_clause = (
+        f"status_change_date >= '{_iso_start(from_date)}' "
+        f"AND status_change_date <= '{_iso_end(to_date)}'"
+    )
+    cat_clause = "(" + " OR ".join(
+        f"upper(op_auth_type) like '%{_esc(_normalise(c))}%'" for c in categories
+    ) + ")"
+    grant_parts = [f"upper(reason) like '%{_esc(k)}%'" for k in GRANT_KEYWORDS]
+    grant_parts += [f"upper(op_auth_status) like '%{_esc(k)}%'" for k in GRANT_KEYWORDS]
+    grant_clause = "(" + " OR ".join(grant_parts) + ")"
+    exclude_clause = "NOT (" + " OR ".join(
+        f"upper(reason) like '%{_esc(k)}%'" for k in EXCLUDE_KEYWORDS
+    ) + ")"
 
-    data = response.json()
-    if not isinstance(data, list):
-        raise ValueError(f"Unexpected Motus AuthHist response type: {type(data).__name__}")
-    return data
+    return f"{date_clause} AND {cat_clause} AND {grant_clause} AND {exclude_clause}"
+
+
+def fetch_authhist_rows(from_date, to_date, include_categories=None):
+    """from_date/to_date: 'YYYY-MM-DD'. Filtering happens on the server;
+    results are fetched page by page so nothing is silently truncated."""
+    where = _build_where(from_date, to_date, include_categories)
+    headers = {"Accept-Encoding": "gzip"}
+    token = os.environ.get("SOCRATA_APP_TOKEN")
+    if token:
+        headers["X-App-Token"] = token
+
+    all_rows = []
+    offset = 0
+    with requests.Session() as sess:
+        while offset < MAX_ROWS:
+            params = {
+                "$select": SELECT_FIELDS,
+                "$where": where,
+                "$order": "status_change_date ASC, usdot_number ASC",
+                "$limit": PAGE_SIZE,
+                "$offset": offset,
+            }
+            response = sess.get(
+                MOTUS_AUTHHIST_API, params=params, headers=headers, timeout=REQUEST_TIMEOUT
+            )
+            if response.status_code >= 400:
+                raise ValueError(
+                    f"Motus AuthHist API returned {response.status_code}: {response.text[:500]}"
+                )
+            data = response.json()
+            if not isinstance(data, list):
+                raise ValueError(
+                    f"Unexpected Motus AuthHist response type: {type(data).__name__}"
+                )
+            all_rows.extend(data)
+            if len(data) < PAGE_SIZE:
+                break
+            offset += PAGE_SIZE
+
+    return all_rows
 
 
 def parse_authhist_rows(rows, include_categories=None):
     include_categories = include_categories or MOTUS_INCLUDE_CATEGORIES
 
-    # Debug: show what values actually come back, once per call, so field
-    # names/format assumptions can be verified from your host's logs.
     if rows:
-        sample = rows[0]
-        print(f"[motus] Sample raw row keys: {list(sample.keys())}")
-        print(f"[motus] Sample raw row: {sample}")
-        distinct_statuses = sorted({str(r.get("op_auth_status", "")) for r in rows})[:20]
-        distinct_reasons = sorted({str(r.get("reason", "")) for r in rows})[:20]
-        print(f"[motus] Distinct op_auth_status values seen: {distinct_statuses}")
-        print(f"[motus] Distinct reason values seen: {distinct_reasons}")
+        print(f"[motus] Sample raw row: {rows[0]}")
 
     parsed = []
     skipped_category = 0
     skipped_not_grant = 0
 
+    # Safety net: server already filtered, but re-check in case a field
+    # format differs from what the SoQL filter assumed.
     for row in rows:
         authority_type = str(row.get("op_auth_type") or "").strip()
         if not authority_type or not _category_allowed(authority_type, include_categories):
@@ -181,9 +204,9 @@ def dedupe_rows(rows):
 
 
 def fetch_and_parse_range(from_date, to_date, include_categories=None):
-    print(f"[motus] AuthHist Daily Difference request: {from_date} -> {to_date}")
-    raw_rows = fetch_authhist_rows(from_date, to_date)
-    print(f"[motus] AuthHist source rows: {len(raw_rows)}")
+    print(f"[motus] AuthHist request: {from_date} -> {to_date}")
+    raw_rows = fetch_authhist_rows(from_date, to_date, include_categories)
+    print(f"[motus] AuthHist rows after server-side filter: {len(raw_rows)}")
     parsed_rows = parse_authhist_rows(raw_rows, include_categories)
     final_rows = dedupe_rows(parsed_rows)
     print(f"[motus] Unique new-registration rows: {len(final_rows)}")
