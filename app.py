@@ -956,9 +956,55 @@ def cargo_categories(cargo_list):
     return sorted(cats)
 
 
+try:
+    import lxml.html as _lxml_html
+    import lxml.etree as _lxml_etree
+except ImportError:  # lxml not installed -> BeautifulSoup path is used
+    _lxml_html = None
+    _lxml_etree = None
+
+
+def _parse_cargo_fast(tree):
+    """lxml equivalent of parse_cargo_carried() (same logic, no soup)."""
+    found = []
+    nodes = tree.xpath("//*[contains(text(), 'Cargo Carried')]")
+    if not nodes:
+        return found
+    containers = nodes[0].xpath("ancestor::table[1]")
+    if not containers:
+        return found
+    for table in containers[0].xpath(".//table"):
+        for row in table.xpath(".//tr"):
+            cells = row.xpath("./td")
+            for i in range(0, len(cells) - 1, 2):
+                mark = cells[i].text_content().strip()
+                label = cells[i + 1].text_content().strip()
+                if mark.upper() == "X" and label:
+                    found.append(label)
+    return found
+
+
+def _text_and_cargo_fast(html):
+    """Light-weight parse: returns (text, cargo_list) using lxml directly.
+    Much cheaper on CPU than building a BeautifulSoup tree for every MC."""
+    tree = _lxml_html.fromstring(html)
+    _lxml_etree.strip_elements(tree, _lxml_etree.Comment, "script", "style", with_tail=False)
+    text = "\n".join(t.strip() for t in tree.itertext() if t.strip())
+    return text, _parse_cargo_fast(tree)
+
+
 def parse_carrier(html, mc_number):
-    soup = BeautifulSoup(html, HTML_PARSER)
-    text = soup.get_text("\n", strip=True)
+    text = None
+    cargo_list = None
+    if _lxml_html is not None:
+        try:
+            text, cargo_list = _text_and_cargo_fast(html)
+        except Exception:
+            text = None  # fall back to BeautifulSoup below
+    if text is None:
+        soup = BeautifulSoup(html, HTML_PARSER)
+        text = soup.get_text("\n", strip=True)
+        cargo_list = parse_cargo_carried(soup)
 
     entity_type = get_field(text, "Entity Type:")
     authority_status = get_field(text, "Operating Authority Status:")
@@ -973,8 +1019,6 @@ def parse_carrier(html, mc_number):
     m = re.search(r"\d+", power_units_raw)
     if m:
         power_units = int(m.group())
-
-    cargo_list = parse_cargo_carried(soup)
 
     return {
         "mc_number": mc_number,
