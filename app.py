@@ -2237,6 +2237,45 @@ def admin_proxy_status():
     })
 
 
+@app.route("/api/admin/proxy-test", methods=["GET"])
+@admin_required
+def admin_proxy_test():
+    """Times ONE lightweight request per proxy (plus one direct, no-proxy
+    request) so you can see which proxies/IPs are slow or dead.
+    Open it while no scan is running. Takes ~10-30s."""
+    def timed(proxy_tuple):
+        t0 = time.time()
+        proxies = None
+        label = "DIRECT"
+        if proxy_tuple:
+            host, port, user, pwd, scheme = proxy_tuple
+            url = f"{scheme}://{user}:{pwd}@{host}:{port}"
+            proxies = {"http": url, "https": url}
+            label = f"{user}@{host}"
+        try:
+            r = requests.get(SNAPSHOT_URL, headers=HEADERS, proxies=proxies, timeout=20)
+            return {"proxy": label, "status": r.status_code,
+                    "seconds": round(time.time() - t0, 2)}
+        except Exception as e:
+            return {"proxy": label, "status": "ERROR",
+                    "error": type(e).__name__,
+                    "seconds": round(time.time() - t0, 2)}
+
+    jobs_list = [None] + list(PROXIES)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
+        out = list(ex.map(timed, jobs_list))
+    ok = [o["seconds"] for o in out if o["status"] == 200]
+    return jsonify({
+        "summary": {
+            "tested": len(out),
+            "ok": len(ok),
+            "failed": len(out) - len(ok),
+            "avg_ok_seconds": round(sum(ok) / len(ok), 2) if ok else None,
+        },
+        "results": out,
+    })
+
+
 @app.route("/errors")
 @login_required
 def errors_page():
