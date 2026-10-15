@@ -1,6 +1,7 @@
 flask
 requests
 beautifulsoup4
+lxml
 gunicorn
 psycopg2-binary
 pdfplumber
