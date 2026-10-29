@@ -9,7 +9,7 @@
 
 .scan-controls-restart {
   display: grid;
-  grid-template-columns: 140px 170px 1fr 84px 170px;
+  grid-template-columns: 170px 170px 1fr 84px 170px;
   align-items: end;
   gap: 10px;
 }
@@ -112,27 +112,13 @@ html[data-theme="dark"] .log-scroll td { color: #c7d0db; }
       <div class="scan-controls-restart">
 
         <div class="field">
-          <label>Year</label>
-          <select id="restartYear"></select>
+          <label>From</label>
+          <input type="date" id="restartFrom">
         </div>
 
         <div class="field">
-          <label>Month</label>
-          <select id="restartMonth">
-            <!-- <option value="">Full Year</option> -->
-            <option value="1">January</option>
-            <option value="2">February</option>
-            <option value="3">March</option>
-            <option value="4">April</option>
-            <option value="5">May</option>
-            <option value="6">June</option>
-            <option value="7">July</option>
-            <option value="8">August</option>
-            <option value="9">September</option>
-            <option value="10">October</option>
-            <option value="11">November</option>
-            <option value="12">December</option>
-          </select>
+          <label>To</label>
+          <input type="date" id="restartTo">
         </div>
 
         <div></div>
@@ -148,9 +134,9 @@ html[data-theme="dark"] .log-scroll td { color: #c7d0db; }
       </div>
 
       <div class="range-hint">
-        Pulls FMCSA AuthHist history for the selected year (or a single month within it) and finds
+        Pulls FMCSA AuthHist history for the selected date range (max 10 days per search, 40 days of data per day) and finds
         carriers whose authority was paused (revoked / terminated / suspended) and later restarted
-        (granted / reinstated). Picking a single month finishes much faster than a full year.
+        (granted / reinstated). Shorter ranges finish faster.
       </div>
 
       <div class="error-msg" id="restartErrorMsg"></div>
@@ -182,7 +168,7 @@ html[data-theme="dark"] .log-scroll td { color: #c7d0db; }
 
       <div class="log-scroll" id="restartResultsWrap">
         <div style="padding:20px; text-align:center; color:#8993a1; font-size:12px;">
-          No results yet — pick a year (and optionally a month) and run a search above.
+          No results yet — pick a date range and run a search above.
         </div>
       </div>
     </div>
@@ -195,28 +181,24 @@ html[data-theme="dark"] .log-scroll td { color: #c7d0db; }
 <script>
 let restartPolling = null;
 
-const MONTH_NAMES = [
-  '', 'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
+function restartIso(d) {
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
 
-function restartPopulateYears() {
-  const select = document.getElementById('restartYear');
-  const currentYear = new Date().getFullYear();
-  for (let y = currentYear; y >= 2015; y--) {
-    const opt = document.createElement('option');
-    opt.value = y;
-    opt.textContent = y;
-    select.appendChild(opt);
-  }
-  // Default to last year, since that's usually the fully-closed one.
-  select.value = currentYear - 1;
+function restartInitDates() {
+  const to = new Date();
+  const from = new Date();
+  from.setDate(to.getDate() - 6);
+  document.getElementById('restartFrom').value = restartIso(from);
+  document.getElementById('restartTo').value = restartIso(to);
+  document.getElementById('restartTo').max = restartIso(to);
 }
 
 function restartRenderResults(rows) {
   const wrap = document.getElementById('restartResultsWrap');
   if (!rows || !rows.length) {
-    wrap.innerHTML = '<div style="padding:20px; text-align:center; color:#8993a1; font-size:12px;">No results yet — pick a year (and optionally a month) and run a search above.</div>';
+    wrap.innerHTML = '<div style="padding:20px; text-align:center; color:#8993a1; font-size:12px;">No results yet — pick a date range and run a search above.</div>';
     return;
   }
   let html = `<table><thead><tr>
@@ -236,10 +218,7 @@ function restartRenderResults(rows) {
 }
 
 function restartPeriodLabel(data) {
-  if (data.month) {
-    return `${MONTH_NAMES[data.month]} ${data.year}`;
-  }
-  return String(data.year);
+  return `${data.from_date} → ${data.to_date}`;
 }
 
 function restartStageLabel(data) {
@@ -290,15 +269,15 @@ async function restartPoll() {
 }
 
 async function restartStart() {
-  const year = document.getElementById('restartYear').value;
-  const month = document.getElementById('restartMonth').value; // '' = full year
+  const from_date = document.getElementById('restartFrom').value;
+  const to_date = document.getElementById('restartTo').value;
   const errorEl = document.getElementById('restartErrorMsg');
   errorEl.style.display = 'none';
 
   const res = await fetch('/api/restarted/start', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ year, month: month || null }),
+    body: JSON.stringify({ from_date, to_date }),
   });
   const data = await res.json();
 
@@ -322,7 +301,7 @@ function restartDownload() {
   window.location.href = '/api/restarted/download';
 }
 
-restartPopulateYears();
+restartInitDates();
 restartPoll();
 </script>
 {% endblock %}
