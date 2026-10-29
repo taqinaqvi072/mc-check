@@ -672,29 +672,72 @@ def restart_worker(job_id, username, year, month=None):
         st["total"] = len(restart_rows)
         st["source_row_count"] = source_row_count
 
-    enriched = []
+    prefs = db.get_prefs(username)
+
+    # One SAFER lookup per carrier (a carrier can have several dockets/types).
+    unique_rows = {}
     for row in restart_rows:
+        key = row["usdot"] or row["docket"]
+        if key and (key not in unique_rows or row["restarted_date"] > unique_rows[key]["restarted_date"]):
+            unique_rows[key] = row
+    restart_rows = list(unique_rows.values())
+    with restart_jobs_lock:
+        st = restart_jobs.get(job_id)
+        if st is None:
+            return
+        st["total"] = len(restart_rows)
+
+    enriched = []
+    stats = {"failed": 0, "not_qualified": 0}
+
+    def _enrich(row):
         with restart_jobs_lock:
             if restart_jobs.get(job_id, {}).get("stop_requested"):
-                break
+                return None
+        # Real data comes from SAFER (power units, city/state, authority).
+        # Legacy rows can lack a USDOT -> look up by MC number instead.
+        if row["usdot"]:
+            lookup, qp = row["usdot"], "USDOT"
+        else:
+            lookup, qp = re.sub(r"\D", "", row["docket"]), "MC_MX"
+        # Motus is live/authoritative; SAFER can lag 1-2 days -> skip the
+        # authority check for Motus rows (same as the Motus AuthHist tab).
+        is_motus = row.get("source") == "Motus AuthHist"
+        info = process_one(lookup, _thread_session(), prefs, query_param=qp,
+                           skip_authority_check=is_motus)
+        return row, info
 
-        entry = dict(row)
-        entry["mc_number"] = row["docket"] or row["usdot"]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=MOTUS_WORKERS) as ex:
+        futures = [ex.submit(_enrich, r) for r in restart_rows]
+        for f in concurrent.futures.as_completed(futures):
+            try:
+                out = f.result()
+            except Exception as e:
+                print(f"[restarted] enrich failed: {e}")
+                out = None
+                stats["failed"] += 1
+            with restart_jobs_lock:
+                st = restart_jobs.get(job_id)
+                if st is None:
+                    break
+                st["current"] += 1
+                if out is not None:
+                    row, info = out
+                    if info.get("fetch_error"):
+                        stats["failed"] += 1
+                    elif info.get("qualified"):
+                        entry = dict(row)
+                        entry["mc_number"] = row["docket"] or row["usdot"]
+                        for k in ("legal_name", "phone", "entity_type", "authority_status",
+                                  "power_units", "cargo_carried", "city", "state"):
+                            entry[k] = info.get(k, "")
+                        enriched.append(entry)
+                        st["results"] = enriched
+                    else:
+                        stats["not_qualified"] += 1
 
-        saved = db.get_saved_one(username, entry["mc_number"]) if entry["mc_number"] else None
-        entry["power_units"] = saved.get("power_units") if saved else None
-        entry["cargo_carried"] = saved.get("cargo_carried", "") if saved else ""
-        entry["city"] = saved.get("city", "") if saved else ""
-        entry["state"] = saved.get("state", "") if saved else ""
-
-        enriched.append(entry)
-
-        with restart_jobs_lock:
-            st = restart_jobs.get(job_id)
-            if st is None:
-                break
-            st["current"] += 1
-            st["results"] = enriched
+    print(f"[restarted] done: {len(enriched)} qualified, "
+          f"{stats['not_qualified']} not qualified, {stats['failed']} lookup failures")
 
     with restart_jobs_lock:
         st = restart_jobs.get(job_id)
