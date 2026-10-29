@@ -29,6 +29,7 @@ Dates are YYYY-MM-DD.
 """
 import re
 import time
+from datetime import date, datetime, timedelta
 
 import requests
 
@@ -337,17 +338,23 @@ def _motus_is_restart_start(row):
     return any(kw in reason for kw in RESTART_KEYWORDS)
 
 
-def fetch_motus_candidates(year, month=None):
-    """Phase 1: carrier Active rows granted/reinstated in the period."""
+def fetch_motus_candidates(year, month=None, date_from=None, date_to=None):
+    """Phase 1: carrier Active rows granted/reinstated in the period.
+    date_from/date_to ('YYYY-MM-DD') narrow it to an exact day range."""
     keyword_clauses = " OR ".join(
         f"upper(reason) like '%{_soql_escape(kw)}%'" for kw in RESTART_KEYWORDS
     )
-    prefix = f"{int(year)}{int(month):02d}%" if month else f"{int(year)}%"
+    if date_from and date_to:
+        date_clause = (f"status_change_date between '{date_from.replace('-', '')}' "
+                       f"and '{date_to.replace('-', '')}'")
+    else:
+        prefix = f"{int(year)}{int(month):02d}%" if month else f"{int(year)}%"
+        date_clause = f"status_change_date like '{prefix}'"
     where_clause = (
         f"op_auth_status = 'Active' AND ({keyword_clauses}) "
         f"AND upper(op_auth_type) not like '%BROKER%' "
         f"AND upper(op_auth_type) not like '%FORWARDER%' "
-        f"AND status_change_date like '{prefix}'"
+        f"AND {date_clause}"
     )
     print(f"[restart_history] MOTUS phase 1: {year}-{month or 'all'} candidates")
     rows = _fetch_all_pages(where_clause, MOTUS_API, MOTUS_ORDER)
@@ -420,8 +427,8 @@ def detect_motus_restarts(groups):
     return results
 
 
-def _fetch_motus_restarts(year, month=None):
-    candidates_raw = fetch_motus_candidates(year, month)
+def _fetch_motus_restarts(year, month=None, date_from=None, date_to=None):
+    candidates_raw = fetch_motus_candidates(year, month, date_from, date_to)
     usdots = [_normalise_motus_row(r)["usdot"] for r in candidates_raw]
 
     history_raw = fetch_motus_histories(usdots)
@@ -457,35 +464,36 @@ def _merge_unique(rows):
     return out
 
 
-def _fetch_month(year, month):
+def _fetch_month(year, month, date_from=None, date_to=None):
+    """One calendar month. date_from/date_to (inside that month) narrow the
+    Motus query; legacy is filtered by the caller."""
     period = (year, month)
     if period < LEGACY_LAST_PERIOD:
         return _fetch_legacy_restarts(year, month)
     if period == LEGACY_LAST_PERIOD:  # overlap month: legacy froze mid-month
         l_rows, l_n = _fetch_legacy_restarts(year, month)
-        m_rows, m_n = _fetch_motus_restarts(year, month)
+        m_rows, m_n = _fetch_motus_restarts(year, month, date_from, date_to)
         return _merge_unique(l_rows + m_rows), l_n + m_n
-    return _fetch_motus_restarts(year, month)
+    return _fetch_motus_restarts(year, month, date_from, date_to)
 
 
-def fetch_and_parse_restarts(year, month=None):
-    """Picks the data source by period (see module docstring).
+def fetch_and_parse_restarts(from_date, to_date):
+    """Restarts whose restart date is between from_date and to_date
+    (inclusive, 'YYYY-MM-DD'). Walks month by month, picks the source per
+    month, then filters to the exact day range.
     Returns (restart_rows, source_row_count)."""
-    year = int(year)
-    month = int(month) if month else None
-    legacy_year = LEGACY_LAST_PERIOD[0]
-
-    if month:
-        return _fetch_month(year, month)
-
-    if year < legacy_year:
-        return _fetch_legacy_restarts(year, None)
-    if year > legacy_year:
-        return _fetch_motus_restarts(year, None)
+    d1 = datetime.strptime(from_date, "%Y-%m-%d").date()
+    d2 = datetime.strptime(to_date, "%Y-%m-%d").date()
 
     all_rows, total_source = [], 0
-    for m in range(1, 13):
-        rows, n = _fetch_month(year, m)
-        all_rows.extend(rows)
+    y, m = d1.year, d1.month
+    while (y, m) <= (d2.year, d2.month):
+        month_start = date(y, m, 1)
+        month_end = date(y + (m == 12), (m % 12) + 1, 1) - timedelta(days=1)
+        seg_from = max(d1, month_start).isoformat()
+        seg_to = min(d2, month_end).isoformat()
+        rows, n = _fetch_month(y, m, seg_from, seg_to)
+        all_rows.extend(r for r in rows if from_date <= r["restarted_date"] <= to_date)
         total_source += n
+        y, m = (y + 1, 1) if m == 12 else (y, m + 1)
     return all_rows, total_source
