@@ -386,8 +386,8 @@ def new_restart_job_state():
         "start_time": None,
         "finished_time": None,
         "stop_requested": False,
-        "year": None,
-        "month": None,
+        "from_date": None,
+        "to_date": None,
         "source_row_count": 0,
         "fetch_error": None,
     }
@@ -630,8 +630,24 @@ def motus_register_worker(job_id, username, from_date, to_date):
             st["finished_time"] = time.time()
 
 
-def restart_worker(job_id, username, year, month=None):
-    """AuthHist "All With History" for `year` (optionally one `month`) ->
+RESTART_MAX_DAYS_PER_SEARCH = 10
+RESTART_DAILY_DAY_LIMIT = 40      # days of data one user can search per day
+
+
+def restart_quota_reserve(username, days):
+    """Returns (ok, remaining_before). Stored in Postgres, survives restarts."""
+    return db.restart_quota_reserve(username, days, RESTART_DAILY_DAY_LIMIT)
+
+
+def restart_quota_refund(username, days):
+    try:
+        db.restart_quota_refund(username, days)
+    except Exception as e:
+        print(f"[restarted] quota refund failed: {e}")
+
+
+def restart_worker(job_id, username, from_date, to_date, days_reserved=0):
+    """AuthHist history between from_date and to_date (YYYY-MM-DD) ->
     carriers whose authority was paused then restarted."""
     with restart_jobs_lock:
         st = restart_jobs.get(job_id)
@@ -646,15 +662,16 @@ def restart_worker(job_id, username, year, month=None):
             "start_time": time.time(),
             "finished_time": None,
             "stop_requested": False,
-            "year": year,
-            "month": month,
+            "from_date": from_date,
+            "to_date": to_date,
             "source_row_count": 0,
             "fetch_error": None,
         })
 
     try:
-        restart_rows, source_row_count = restart_history_mod.fetch_and_parse_restarts(year, month)
+        restart_rows, source_row_count = restart_history_mod.fetch_and_parse_restarts(from_date, to_date)
     except Exception as e:
+        restart_quota_refund(username, days_reserved)  # failed search shouldn't use quota
         with restart_jobs_lock:
             st = restart_jobs.get(job_id)
             if st:
@@ -1776,31 +1793,37 @@ def restarted_start():
             return jsonify({"error": "A restart search is already running"}), 400
 
     data = request.get_json(force=True)
-    year = data.get("year")
-    month = data.get("month")
+    from_date = (data.get("from_date") or "").strip()
+    to_date = (data.get("to_date") or "").strip()
+    if not from_date or not to_date:
+        return jsonify({"error": "Both from_date and to_date are required (YYYY-MM-DD)"}), 400
 
     try:
-        year = int(year)
-    except (TypeError, ValueError):
-        return jsonify({"error": "A valid year is required"}), 400
+        d1 = datetime.strptime(from_date, "%Y-%m-%d")
+        d2 = datetime.strptime(to_date, "%Y-%m-%d")
+    except ValueError:
+        return jsonify({"error": "Dates must be in YYYY-MM-DD format"}), 400
 
-    if year < 2015 or year > datetime.now().year:
-        return jsonify({"error": f"Year must be between 2015 and {datetime.now().year}"}), 400
+    if d2 < d1:
+        return jsonify({"error": "End date must be on or after start date"}), 400
+    if d2 > datetime.now():
+        return jsonify({"error": "End date can't be in the future"}), 400
 
-    if month in (None, "", "0", 0):
-        month = None
-    else:
-        try:
-            month = int(month)
-        except (TypeError, ValueError):
-            return jsonify({"error": "Month must be a number 1-12"}), 400
-        if month < 1 or month > 12:
-            return jsonify({"error": "Month must be between 1 and 12"}), 400
+    days = (d2 - d1).days + 1
+    if days > RESTART_MAX_DAYS_PER_SEARCH:
+        return jsonify({"error": f"Max range is {RESTART_MAX_DAYS_PER_SEARCH} days per search"}), 400
 
     username = session["username"]
+    ok, remaining = restart_quota_reserve(username, days)
+    if not ok:
+        return jsonify({
+            "error": (f"Daily limit: {RESTART_DAILY_DAY_LIMIT} days of data per day. "
+                      f"You have {max(remaining, 0)} day(s) left today, this search needs {days}."),
+        }), 403
+
     t = threading.Thread(
         target=restart_worker,
-        args=(job_id, username, year, month),
+        args=(job_id, username, from_date, to_date, days),
         daemon=True,
     )
     t.start()
@@ -1829,8 +1852,8 @@ def restarted_status():
             "total": st["total"],
             "source_row_count": st["source_row_count"],
             "result_count": len(st["results"]),
-            "year": st["year"],
-            "month": st["month"],
+            "from_date": st["from_date"],
+            "to_date": st["to_date"],
             "fetch_error": st["fetch_error"],
         })
 
