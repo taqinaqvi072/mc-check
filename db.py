@@ -145,6 +145,12 @@ def init_db():
             daily_checked INTEGER DEFAULT 0,
             daily_date TEXT
         )""",
+        """CREATE TABLE IF NOT EXISTS restart_usage (
+            username TEXT NOT NULL,
+            usage_date TEXT NOT NULL,
+            days_used INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (username, usage_date)
+        )""",
         """CREATE TABLE IF NOT EXISTS signup_otps (
             email TEXT PRIMARY KEY,
             otp_hash TEXT NOT NULL,
@@ -314,6 +320,7 @@ def rename_username(old_username, new_username):
         cur.execute("UPDATE history SET username = %s WHERE username = %s", (new_username, old_username))
         cur.execute("UPDATE prefs SET username = %s WHERE username = %s", (new_username, old_username))
         cur.execute("UPDATE usage SET username = %s WHERE username = %s", (new_username, old_username))
+        cur.execute("UPDATE restart_usage SET username = %s WHERE username = %s", (new_username, old_username))
     conn.commit()
 
 
@@ -361,6 +368,7 @@ def delete_user(username):
         cur.execute("DELETE FROM history WHERE username = %s", (username,))
         cur.execute("DELETE FROM prefs WHERE username = %s", (username,))
         cur.execute("DELETE FROM usage WHERE username = %s", (username,))
+        cur.execute("DELETE FROM restart_usage WHERE username = %s", (username,))
         cur.execute("DELETE FROM users WHERE username = %s", (username,))
     conn.commit()
 
@@ -563,6 +571,58 @@ def add_usage(username, count):
             (count, count, username),
         )
     conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# Restarted-carriers daily quota (days of data searched per day)
+# ---------------------------------------------------------------------------
+def restart_quota_reserve(username, days, daily_limit):
+    """Atomically reserves `days` for today. Returns (ok, remaining_before)."""
+    today = time.strftime("%Y-%m-%d")
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO restart_usage (username, usage_date, days_used) VALUES (%s, %s, 0) "
+                "ON CONFLICT (username, usage_date) DO NOTHING",
+                (username, today),
+            )
+            cur.execute(
+                "UPDATE restart_usage SET days_used = days_used + %s "
+                "WHERE username = %s AND usage_date = %s AND days_used + %s <= %s "
+                "RETURNING days_used",
+                (days, username, today, days, daily_limit),
+            )
+            row = cur.fetchone()
+            if row:
+                conn.commit()
+                return True, daily_limit - (row["days_used"] - days)
+            cur.execute(
+                "SELECT days_used FROM restart_usage WHERE username = %s AND usage_date = %s",
+                (username, today),
+            )
+            used = cur.fetchone()["days_used"]
+        conn.commit()
+        return False, daily_limit - used
+    except Exception:
+        conn.rollback()
+        raise
+
+
+def restart_quota_refund(username, days):
+    if not days:
+        return
+    conn = get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE restart_usage SET days_used = GREATEST(days_used - %s, 0) "
+                "WHERE username = %s AND usage_date = %s",
+                (days, username, time.strftime("%Y-%m-%d")),
+            )
+        conn.commit()
+    except Exception:
+        conn.rollback()
 
 
 # ---------------------------------------------------------------------------
