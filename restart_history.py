@@ -1,47 +1,31 @@
-"""Restarted Carriers — hybrid FMCSA AuthHist integration.
+"""Restarted Carriers — hybrid FMCSA AuthHist integration (v2, data-accuracy fixes).
 
 TWO DATA SOURCES (FMCSA froze the old one on 05/14/2026):
 
   1. LEGACY  "AuthHist - All With History"  (9mw4-x3tu)
-     Frozen: "last refreshed on 05/14/2026 and will no longer be updated".
-     Row = one authority record carrying BOTH its start
-     (original_action_desc + orig_served_date, MM/DD/YYYY) and its end
-     (disp_action_desc + disp_decided_date). Used for periods up to and
-     including LEGACY_LAST_PERIOD (April 2026).
+     Frozen 05/14/2026. Row = one authority record carrying BOTH its start
+     (original_action_desc + orig_served_date) and its end
+     (disp_action_desc + disp_decided_date). Used up to and including
+     LEGACY_LAST_PERIOD (May 2026, partial: 1-14 May only).
 
   2. MOTUS   "Motus AuthHist - All With History"  (yu5v-wbh6)
-     Live. Row = one STATUS CHANGE:
-       docket_number, usdot_number, op_auth_type,
-       op_auth_status (Active / Pending / Inactive / Withdrawn),
-       reason, status_change_date (text, YYYYMMDD).
-     Used for May 2026 onwards.
-     If this dataset id turns out to be wrong, change MOTUS_API only —
-     the schema above is what the code expects (same as dm5j-zc6c).
+     Live. Row = one STATUS CHANGE (status_change_date is text YYYYMMDD).
+     Used from May 2026 onwards (May is queried from BOTH sources and merged).
 
-ROUTER: fetch_and_parse_restarts(year, month=None) picks the source by
-period, so app.py needs no changes (see the small optional CSV patch at
-the bottom of this file's notes in the chat).
-
-MOTUS RESTART DEFINITION: for the same (usdot, docket, op_auth_type),
-an Inactive row (a real pause) is followed LATER by an Active row whose
-reason contains GRANT or REINSTAT. That Active row is the restart.
-  - Withdrawn / Pending are never pauses.
-  - Inactive rows with reason "Administrative status adjustment" or
-    "Administrative Correction" are ignored (bookkeeping, not a real pause).
-  - "Initial Status" + Inactive IS counted as a pause (the carrier was
-    already inactive when the Motus dataset started). Its date is whatever
-    the dataset says and may not be the true original pause date.
-  - If several Inactive rows come in a row (e.g. suspension then
-    revocation) the FIRST one is kept as the pause start.
-
-KNOWN LIMITATION: the Motus dataset starts around the Motus migration
-(mid-2026), so it does not hold decades of history like the legacy one.
-A restart is only detected if its pause row is in the Motus dataset
-(including "Initial Status" rows).
+WHAT CHANGED IN v2 (why the client saw "fake / empty" data):
+  * Brokers and freight forwarders are no longer treated as carrier
+    pauses/restarts (they used to show up in the list).
+  * Motus: a restart is dropped if the carrier was paused AGAIN after it
+    (so the list shows carriers that are really running now).
+  * USDOT / docket numbers are cleaned (legacy has '00085526', 'MC000647').
+    Legacy rows with USDOT '00000000' now keep an empty usdot, so app.py can
+    look them up by MC number instead.
+  * May 2026 is read from both sources (legacy stops 14 May, Motus starts
+    ~9 June, so there is still an unavoidable gap 15 May - 9 Jun).
 
 Output rows (both sources): usdot, docket, paused_date, paused_reason,
-restarted_date, restarted_reason, source. Motus rows also carry
-authority_type. Dates are YYYY-MM-DD.
+restarted_date, restarted_reason, source (+ authority_type for Motus).
+Dates are YYYY-MM-DD.
 """
 import re
 import time
@@ -52,10 +36,9 @@ LEGACY_API = "https://data.transportation.gov/resource/9mw4-x3tu.json"
 MOTUS_API = "https://data.transportation.gov/resource/yu5v-wbh6.json"
 AUTHHIST_HISTORY_API = LEGACY_API  # backwards-compatible alias
 
-# Last (year, month) served from the legacy dataset. Anything after this
-# comes from Motus.
-LEGACY_LAST_PERIOD = (2026, 4)
-MOTUS_FIRST_MONTH_OF_LAST_LEGACY_YEAR = LEGACY_LAST_PERIOD[1] + 1  # May
+# Last (year, month) served from legacy. That month is ALSO queried from Motus
+# and merged (legacy froze mid-month).
+LEGACY_LAST_PERIOD = (2026, 5)
 
 REQUEST_TIMEOUT = 30
 PAGE_LIMIT = 50000
@@ -74,6 +57,9 @@ DISPOSITION_EXCLUDE_KEYWORDS = [
 ]
 RESTART_KEYWORDS = ["GRANT", "REINSTAT"]
 
+# Authority kinds that are NOT carriers.
+NON_CARRIER_KEYWORDS = ["BROKER", "FORWARDER"]
+
 # Motus: Inactive rows with these reasons are bookkeeping, not real pauses.
 MOTUS_PAUSE_EXCLUDE_REASONS = [
     "ADMINISTRATIVE STATUS ADJUSTMENT",
@@ -81,6 +67,7 @@ MOTUS_PAUSE_EXCLUDE_REASONS = [
 ]
 
 _MDY_RE = re.compile(r"^(\d{1,2})/(\d{1,2})/(\d{4})$")
+_DOCKET_RE = re.compile(r"^([A-Za-z]{1,3})0*(\d+)$")
 
 
 # ---------------------------------------------------------------------------
@@ -92,6 +79,23 @@ def _normalise(value):
 
 def _soql_escape(value):
     return str(value).replace("'", "''")
+
+
+def _clean_usdot(value):
+    """'00085526' -> '85526'; '00000000' -> ''."""
+    return str(value or "").strip().lstrip("0")
+
+
+def _clean_docket(value):
+    """'MC000647' -> 'MC647'."""
+    value = str(value or "").strip()
+    m = _DOCKET_RE.match(value)
+    return f"{m.group(1).upper()}{m.group(2)}" if m else value
+
+
+def _is_non_carrier(text):
+    t = _normalise(text)
+    return any(k in t for k in NON_CARRIER_KEYWORDS)
 
 
 def _clean_date(value):
@@ -172,8 +176,14 @@ def dedupe_restarts(rows):
     return out
 
 
+def _in_period(restarted_date, year, month):
+    if restarted_date[:4] != str(year):
+        return False
+    return month is None or restarted_date[5:7] == f"{int(month):02d}"
+
+
 # ---------------------------------------------------------------------------
-# LEGACY source (9mw4-x3tu) — logic unchanged from before
+# LEGACY source (9mw4-x3tu)
 # ---------------------------------------------------------------------------
 def fetch_candidate_restart_rows(year, month=None):
     keyword_clauses = " OR ".join(
@@ -230,6 +240,8 @@ def _end_date(row):
 
 
 def _is_real_disposition(row):
+    if _is_non_carrier(row["mod_col_1"]):
+        return False
     if not _end_date(row):
         return False
     desc = _normalise(row["disp_action_desc"])
@@ -237,6 +249,8 @@ def _is_real_disposition(row):
 
 
 def _is_restart_start(row):
+    if _is_non_carrier(row["mod_col_1"]):
+        return False
     desc = _normalise(row["original_action_desc"])
     return any(kw in desc for kw in RESTART_KEYWORDS)
 
@@ -274,7 +288,6 @@ def detect_restarts(docket_groups):
 
 
 def _fetch_legacy_restarts(year, month):
-    """Legacy source, month-scoped (or whole-year if month is None)."""
     candidate_rows_raw = fetch_candidate_restart_rows(year, month)
     docket_numbers = [_normalise_row(r)["docket_number"] for r in candidate_rows_raw]
 
@@ -282,26 +295,17 @@ def _fetch_legacy_restarts(year, month):
     grouped = group_by_docket([_normalise_row(r) for r in history_rows_raw])
     deduped = dedupe_restarts(detect_restarts(grouped))
 
-    year_str = str(year)
-    month_str = f"{int(month):02d}" if month else None
-
-    def _in_period(r):
-        d = r["restarted_date"]
-        if d[:4] != year_str:
-            return False
-        return month_str is None or d[5:7] == month_str
-
     final_rows = [{
-        "usdot": r["dot_number"],
-        "docket": r["docket_number"],
+        "usdot": _clean_usdot(r["dot_number"]),
+        "docket": _clean_docket(r["docket_number"]),
         "paused_date": r["paused_date"],
         "paused_reason": r["paused_reason"],
         "restarted_date": r["restarted_date"],
         "restarted_reason": r["restarted_reason"],
         "source": "Legacy AuthHist",
-    } for r in deduped if _in_period(r)]
+    } for r in deduped if _in_period(r["restarted_date"], year, month)]
 
-    print(f"[restart_history] LEGACY restarts in {year}-{month_str or 'all'}: {len(final_rows)}")
+    print(f"[restart_history] LEGACY restarts in {year}-{month or 'all'}: {len(final_rows)}")
     return final_rows, len(candidate_rows_raw) + len(history_rows_raw)
 
 
@@ -334,14 +338,15 @@ def _motus_is_restart_start(row):
 
 
 def fetch_motus_candidates(year, month=None):
-    """Phase 1: Active rows granted/reinstated in the period. Dates are
-    plain YYYYMMDD text, so a prefix `like` is reliable."""
+    """Phase 1: carrier Active rows granted/reinstated in the period."""
     keyword_clauses = " OR ".join(
         f"upper(reason) like '%{_soql_escape(kw)}%'" for kw in RESTART_KEYWORDS
     )
     prefix = f"{int(year)}{int(month):02d}%" if month else f"{int(year)}%"
     where_clause = (
         f"op_auth_status = 'Active' AND ({keyword_clauses}) "
+        f"AND upper(op_auth_type) not like '%BROKER%' "
+        f"AND upper(op_auth_type) not like '%FORWARDER%' "
         f"AND status_change_date like '{prefix}'"
     )
     print(f"[restart_history] MOTUS phase 1: {year}-{month or 'all'} candidates")
@@ -351,7 +356,6 @@ def fetch_motus_candidates(year, month=None):
 
 
 def fetch_motus_histories(usdot_numbers):
-    """Phase 2: every status-change row for each candidate carrier."""
     usdot_numbers = sorted(set(u for u in usdot_numbers if u))
     if not usdot_numbers:
         return []
@@ -375,6 +379,8 @@ def group_motus(rows):
     for row in rows:
         if not row["usdot"] or not row["docket"]:
             continue
+        if _is_non_carrier(row["op_auth_type"]):
+            continue  # broker / freight-forwarder authority, not a carrier
         groups.setdefault((row["usdot"], row["docket"], row["op_auth_type"]), []).append(row)
     for key in groups:
         groups[key].sort(key=lambda r: r["date"])
@@ -384,10 +390,12 @@ def group_motus(rows):
 def detect_motus_restarts(groups):
     results = []
     for (usdot, docket, op_type), rows in groups.items():
-        pending = None  # first unmatched real pause
+        pending = None       # first unmatched real pause
+        last_idx = None      # index in `local` of the latest restart
+        local = []
         for row in rows:
             if pending is not None and _motus_is_restart_start(row) and row["date"] > pending["date"]:
-                results.append({
+                local.append({
                     "dot_number": usdot,
                     "docket_number": docket,
                     "paused_date": pending["date"],
@@ -395,10 +403,20 @@ def detect_motus_restarts(groups):
                     "restarted_date": row["date"],
                     "restarted_reason": row["reason"],
                     "authority_type": op_type,
+                    "_paused_again": False,
                 })
+                last_idx = len(local) - 1
                 pending = None
-            if pending is None and _motus_is_pause(row):
-                pending = row
+            if _motus_is_pause(row):
+                # paused again after a restart -> that restart is no longer live
+                if last_idx is not None and row["date"] > local[last_idx]["restarted_date"]:
+                    local[last_idx]["_paused_again"] = True
+                    last_idx = None
+                if pending is None:
+                    pending = row
+        results.extend(r for r in local if not r["_paused_again"])
+    for r in results:
+        r.pop("_paused_again", None)
     return results
 
 
@@ -410,65 +428,64 @@ def _fetch_motus_restarts(year, month=None):
     grouped = group_motus([_normalise_motus_row(r) for r in history_raw])
     deduped = dedupe_restarts(detect_motus_restarts(grouped))
 
-    year_str = str(year)
-    month_str = f"{int(month):02d}" if month else None
-
-    def _in_period(r):
-        d = r["restarted_date"]
-        if d[:4] != year_str:
-            return False
-        return month_str is None or d[5:7] == month_str
-
     final_rows = [{
-        "usdot": r["dot_number"],
-        "docket": r["docket_number"],
+        "usdot": _clean_usdot(r["dot_number"]),
+        "docket": _clean_docket(r["docket_number"]),
         "paused_date": r["paused_date"],
         "paused_reason": r["paused_reason"],
         "restarted_date": r["restarted_date"],
         "restarted_reason": r["restarted_reason"],
         "authority_type": r.get("authority_type", ""),
         "source": "Motus AuthHist",
-    } for r in deduped if _in_period(r)]
+    } for r in deduped if _in_period(r["restarted_date"], year, month)]
 
-    print(f"[restart_history] MOTUS restarts in {year}-{month_str or 'all'}: {len(final_rows)}")
+    print(f"[restart_history] MOTUS restarts in {year}-{month or 'all'}: {len(final_rows)}")
     return final_rows, len(candidates_raw) + len(history_raw)
 
 
 # ---------------------------------------------------------------------------
 # Public router
 # ---------------------------------------------------------------------------
-def fetch_and_parse_restarts(year, month=None):
-    """Picks the data source by period:
-        <= LEGACY_LAST_PERIOD (Apr 2026)  -> legacy 9mw4-x3tu
-        >  LEGACY_LAST_PERIOD             -> Motus yu5v-wbh6
-    A whole-year search that straddles the cutoff (2026, month=None)
-    runs legacy for Jan-Apr and Motus for May-Dec and merges them.
+def _merge_unique(rows):
+    seen, out = set(), []
+    for r in rows:
+        key = (r["usdot"], r["docket"], r["restarted_date"])
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(r)
+    return out
 
-    Returns (restart_rows, source_row_count) — same shape as before.
-    """
+
+def _fetch_month(year, month):
+    period = (year, month)
+    if period < LEGACY_LAST_PERIOD:
+        return _fetch_legacy_restarts(year, month)
+    if period == LEGACY_LAST_PERIOD:  # overlap month: legacy froze mid-month
+        l_rows, l_n = _fetch_legacy_restarts(year, month)
+        m_rows, m_n = _fetch_motus_restarts(year, month)
+        return _merge_unique(l_rows + m_rows), l_n + m_n
+    return _fetch_motus_restarts(year, month)
+
+
+def fetch_and_parse_restarts(year, month=None):
+    """Picks the data source by period (see module docstring).
+    Returns (restart_rows, source_row_count)."""
     year = int(year)
     month = int(month) if month else None
-    legacy_year, legacy_month = LEGACY_LAST_PERIOD
+    legacy_year = LEGACY_LAST_PERIOD[0]
 
     if month:
-        if (year, month) <= LEGACY_LAST_PERIOD:
-            return _fetch_legacy_restarts(year, month)
-        return _fetch_motus_restarts(year, month)
+        return _fetch_month(year, month)
 
-    # Whole-year searches
     if year < legacy_year:
         return _fetch_legacy_restarts(year, None)
     if year > legacy_year:
         return _fetch_motus_restarts(year, None)
 
-    # year == legacy_year: split at the cutoff, month by month so each
-    # query stays small.
     all_rows, total_source = [], 0
     for m in range(1, 13):
-        if m <= legacy_month:
-            rows, n = _fetch_legacy_restarts(year, m)
-        else:
-            rows, n = _fetch_motus_restarts(year, m)
+        rows, n = _fetch_month(year, m)
         all_rows.extend(rows)
         total_source += n
     return all_rows, total_source
